@@ -19,6 +19,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        if (!class_exists(\App\Domains\AuthenticationSessions\Models\User::class)) {
+            class_alias(
+                \App\Models\User::class,
+                \App\Domains\AuthenticationSessions\Models\User::class
+            );
+        }
     }
 }
