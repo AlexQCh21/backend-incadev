@@ -1,8 +1,16 @@
 # Backend INCADEV - BACKEND DEL GRUPO 1
 
 ---
+## Instalación y Configuración de Techproc-Backend
+1. Seguir los pasos del repositorio
+https://github.com/Diego-Panta/TechProc-Backend/tree/shared
+**IMPORTANTE**: asegurarse de estar en la rama shared y agregar la misma `APP_KEY` compartida en el grupo de WhatsApp de Jefes:
+```env
+APP_KEY=base64:+ND2YGIDh/angHUmvvU0fjP0WYB7rsoI+uahYK+x0/E=
+```
+al .env de Techproc-backend
 
-## Instalación y Configuración
+## Instalación y Configuración de backend-incadev
 
 ### 1. Clonar el repositorio
 
