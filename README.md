@@ -76,5 +76,5 @@ http://localhost:8001/api/auth/login
 2. Probar la siguiente ruta tipo GET:
 
 ```bash
-http://localhost:8002/api/dashboard/groups
+http://localhost:8000/api/dashboard/groups
 ```
