@@ -30,7 +30,6 @@ APP_KEY=base64:+ND2YGIDh/angHUmvvU0fjP0WYB7rsoI+uahYK+x0/E=
 ```bash
 php artisan migrate
 ```
----
 
 ### 5. Ejecutar seed
 
@@ -42,4 +41,40 @@ php artisan db:seed --class="IncadevUns\CoreDomain\Database\Seeders\IncadevSeede
 
 ```bash
 php artisan serve
+```
+
+---
+
+## Probar la correcta integración con Techproc-backend
+
+### PRUEBA DE LOGIN
+
+Probar con el siguiente endpoint para verificar la autenticación
+
+```bash
+http://localhost:800/api/test
+```
+
+### PRUEBA DE ROLES
+
+1. Inicia sesión con:
+
+```bash
+{
+  "email": "elena.viewer@incadev.com",
+  "password": "password",
+  "role": "system_viewer"
+}
+```
+
+en el endpoint:
+
+```bash
+http://localhost:8001/api/auth/login
+```
+
+2. Probar la siguiente ruta tipo GET:
+
+```bash
+http://localhost:8002/api/dashboard/groups
 ```
