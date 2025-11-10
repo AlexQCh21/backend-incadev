@@ -52,7 +52,7 @@ php artisan serve
 Probar con el siguiente endpoint para verificar la autenticación
 
 ```bash
-http://localhost:800/api/test
+http://localhost:8000/api/test
 ```
 
 ### PRUEBA DE ROLES
