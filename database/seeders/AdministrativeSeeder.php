@@ -134,6 +134,7 @@ class AdministrativeSeeder extends Seeder
             $group3 = Group::firstOrCreate(
                 ['name' => 'Grupo C - DW-CC', 'course_version_id' => $versionDWCC->id],
                 ['start_date' => Carbon::now()->addDays(20), 'end_date' => Carbon::now()->addMonths(3), 'status' => GroupStatus::Enrolling]
+            );
 
             
             $enrollments = [];

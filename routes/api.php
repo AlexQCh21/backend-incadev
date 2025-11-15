@@ -27,3 +27,8 @@ Route::prefix('pagos')->group(function () {
     Route::get('/{id}/invoice', [PaymentsController::class, 'downloadInvoice']);
     Route::get('/{id}/invoice-data', [PaymentsController::class, 'getInvoiceData']);
 });
+
+Route::prefix('dashboard')->group(function () {
+    Route::get('/data', [DashboardController::class, 'getDashboardData']);
+    Route::get('/export-data', [DashboardController::class, 'exportDashboardData']);
+});
