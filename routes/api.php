@@ -28,7 +28,13 @@ Route::prefix('pagos')->group(function () {
     Route::get('/{id}/invoice-data', [PaymentsController::class, 'getInvoiceData']);
 });
 
+//DASHBOARD ROUTES
 Route::prefix('dashboard')->group(function () {
     Route::get('/data', [DashboardController::class, 'getDashboardData']);
     Route::get('/export-data', [DashboardController::class, 'exportDashboardData']);
+});
+
+//FINANZAS ROUTES
+Route::prefix('finanzas')->group(function () {
+    Route::get('/balance-general', [\App\Http\Controllers\Finanzas\BalanceGeneralController::class, 'index']);
 });
