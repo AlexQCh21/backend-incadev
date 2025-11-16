@@ -26,6 +26,9 @@ Route::prefix('pagos')->group(function () {
     Route::get('/export-data', [PaymentsController::class, 'getExportData']);
     Route::get('/{id}/invoice', [PaymentsController::class, 'downloadInvoice']);
     Route::get('/{id}/invoice-data', [PaymentsController::class, 'getInvoiceData']);
+    // Endpoints para validar pago de estudiantes
+    Route::post('/{id}/approve', [PaymentsController::class, 'approve']);
+    Route::post('/{id}/reject', [PaymentsController::class, 'reject']);
 });
 
 //DASHBOARD ROUTES
