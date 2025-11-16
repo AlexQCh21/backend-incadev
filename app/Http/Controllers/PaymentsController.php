@@ -80,12 +80,14 @@ class PaymentsController extends Controller
             ->leftJoin('enrollments', 'enrollment_payments.enrollment_id', '=', 'enrollments.id')
             ->leftJoin('users', 'enrollments.user_id', '=', 'users.id')
             ->select([
-                'enrollment_payments.id as payment_id',
+                'enrollment_payments.id',
+                'enrollment_payments.enrollment_id',
+                'enrollment_payments.operation_number',
+                'enrollment_payments.agency_number',
+                'enrollment_payments.operation_date',
                 'enrollment_payments.amount',
-                'enrollment_payments.operation_date as payment_date',
+                'enrollment_payments.evidence_path',
                 'enrollment_payments.status',
-                'enrollment_payments.operation_number as invoice_number',
-                'enrollment_payments.agency_number as payment_method',
                 DB::raw("TRIM(COALESCE(users.name, '')) as student_name"),
             ]);
 
@@ -170,12 +172,14 @@ class PaymentsController extends Controller
             ->leftJoin('enrollments', 'enrollment_payments.enrollment_id', '=', 'enrollments.id')
             ->leftJoin('users', 'enrollments.user_id', '=', 'users.id')
             ->select([
-                'enrollment_payments.id as payment_id',
+                'enrollment_payments.id',
+                'enrollment_payments.enrollment_id',
+                'enrollment_payments.operation_number',
+                'enrollment_payments.agency_number',
+                'enrollment_payments.operation_date',
                 'enrollment_payments.amount',
-                'enrollment_payments.operation_date as payment_date',
+                'enrollment_payments.evidence_path',
                 'enrollment_payments.status',
-                'enrollment_payments.operation_number as invoice_number',
-                'enrollment_payments.agency_number as payment_method',
                 DB::raw("TRIM(COALESCE(users.name, '')) as student_name"),
             ])
             ->orderByDesc('enrollment_payments.operation_date')
@@ -186,20 +190,19 @@ class PaymentsController extends Controller
         return response()->streamDownload(function () use ($records) {
             $handle = fopen('php://output', 'w');
 
-            // Include UTF-8 BOM so spreadsheet apps display accents correctly
             fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF));
 
-            fputcsv($handle, ['ID Pago', 'Estudiante', 'Agencia', 'Monto', 'Fecha', 'Estado', 'N° Operación']);
+            fputcsv($handle, ['ID', 'Estudiante', 'Agencia', 'Monto', 'Fecha Operación', 'Estado', 'N° Operación']);
 
             foreach ($records as $row) {
                 fputcsv($handle, [
-                    'P-' . str_pad($row->payment_id, 3, '0', STR_PAD_LEFT),
+                    $row->id,
                     trim($row->student_name) !== '' ? $row->student_name : 'Sin asignar',
-                    $row->payment_method ?? 'Sin agencia',
+                    $row->agency_number ?? 'Sin agencia',
                     number_format((float) ($row->amount ?? 0), 2, ',', '.'),
-                    $row->payment_date ? Carbon::parse($row->payment_date)->format('d/m/Y') : 'Sin fecha',
+                    $row->operation_date ? Carbon::parse($row->operation_date)->format('d/m/Y') : 'Sin fecha',
                     ucfirst(strtolower($row->status ?? 'pendiente')),
-                    $row->invoice_number ?? 'Sin número',
+                    $row->operation_number ?? 'Sin número',
                 ]);
             }
 
@@ -220,12 +223,14 @@ class PaymentsController extends Controller
             ->leftJoin('enrollments', 'enrollment_payments.enrollment_id', '=', 'enrollments.id')
             ->leftJoin('users', 'enrollments.user_id', '=', 'users.id')
             ->select([
-                'enrollment_payments.id as payment_id',
+                'enrollment_payments.id',
+                'enrollment_payments.enrollment_id',
+                'enrollment_payments.operation_number',
+                'enrollment_payments.agency_number',
+                'enrollment_payments.operation_date',
                 'enrollment_payments.amount',
-                'enrollment_payments.operation_date as payment_date',
+                'enrollment_payments.evidence_path',
                 'enrollment_payments.status',
-                'enrollment_payments.operation_number as invoice_number',
-                'enrollment_payments.agency_number as payment_method',
                 DB::raw("TRIM(COALESCE(users.name, '')) as student_name"),
             ])
             ->orderByDesc('enrollment_payments.operation_date')
@@ -283,13 +288,14 @@ class PaymentsController extends Controller
             ->leftJoin('enrollments', 'enrollment_payments.enrollment_id', '=', 'enrollments.id')
             ->leftJoin('users', 'enrollments.user_id', '=', 'users.id')
             ->select([
-                'enrollment_payments.id as payment_id',
+                'enrollment_payments.id',
+                'enrollment_payments.enrollment_id',
+                'enrollment_payments.operation_number',
+                'enrollment_payments.agency_number',
+                'enrollment_payments.operation_date',
                 'enrollment_payments.amount',
-                'enrollment_payments.operation_date as payment_date',
-                'enrollment_payments.status as payment_status',
-                'enrollment_payments.operation_number as invoice_number',
-                'enrollment_payments.operation_date as issue_date',
-                'enrollment_payments.agency_number as payment_method',
+                'enrollment_payments.evidence_path',
+                'enrollment_payments.status',
                 'users.name as student_name',
                 'users.dni as document_number',
                 'users.email',
@@ -301,11 +307,51 @@ class PaymentsController extends Controller
             return response()->json(['error' => 'No se encontró el pago solicitado.'], 404);
         }
 
-        if (! $payment->invoice_number) {
-            $payment->invoice_number = sprintf('OP-%04d', $payment->payment_id);
+        return response()->json($payment);
+    }
+
+    //Aprobar/Rechazar pagos de estudiantes
+
+    public function approve(Request $request, $id)
+    {
+        $payment = DB::table('enrollment_payments')->where('id', $id)->first();
+        if (! $payment) {
+            return response()->json(['error' => 'Pago no encontrado.'], 404);
         }
 
-        return response()->json($payment);
+        if (strtolower($payment->status) === 'approved') {
+            return response()->json(['message' => 'Pago ya se encuentra aprobado.'], 200);
+        }
+
+        DB::table('enrollment_payments')->where('id', $id)->update([
+            'status' => 'approved',
+            'updated_at' => Carbon::now(),
+        ]);
+
+        Log::info('Pago aprobado', ['payment_id' => $id, 'user_ip' => $request->ip()]);
+
+        return response()->json(['message' => 'Pago aprobado correctamente.']);
+    }
+
+    public function reject(Request $request, $id)
+    {
+        $payment = DB::table('enrollment_payments')->where('id', $id)->first();
+        if (! $payment) {
+            return response()->json(['error' => 'Pago no encontrado.'], 404);
+        }
+
+        if (strtolower($payment->status) === 'rejected') {
+            return response()->json(['message' => 'Pago ya se encuentra rechazado.'], 200);
+        }
+
+        DB::table('enrollment_payments')->where('id', $id)->update([
+            'status' => 'rejected',
+            'updated_at' => Carbon::now(),
+        ]);
+
+        Log::info('Pago rechazado', ['payment_id' => $id, 'user_ip' => $request->ip()]);
+
+        return response()->json(['message' => 'Pago rechazado correctamente.']);
     }
 }
 
