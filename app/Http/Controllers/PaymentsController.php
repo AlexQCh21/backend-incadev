@@ -6,7 +6,8 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Str;
+use IncadevUns\CoreDomain\Enums\PaymentVerificationStatus;
 
 class PaymentsController extends Controller
 {
@@ -21,13 +22,13 @@ class PaymentsController extends Controller
 
         $monthlyIncome = (float) DB::table('enrollment_payments')
             ->whereNotNull('amount')
-            ->where('status', 'approved')
+            ->where('status', PaymentVerificationStatus::Approved->value)
             ->whereBetween('operation_date', [$currentMonthStart, $currentMonthEnd])
             ->sum('amount');
 
         $previousIncome = (float) DB::table('enrollment_payments')
             ->whereNotNull('amount')
-            ->where('status', 'approved')
+            ->where('status', PaymentVerificationStatus::Approved->value)
             ->whereBetween('operation_date', [$previousMonthStart, $previousMonthEnd])
             ->sum('amount');
 
@@ -38,12 +39,12 @@ class PaymentsController extends Controller
         $pendingSnapshot = DB::table('enrollment_payments')
             ->leftJoin('enrollments', 'enrollment_payments.enrollment_id', '=', 'enrollments.id')
             ->leftJoin('users', 'enrollments.user_id', '=', 'users.id')
-            ->where('enrollment_payments.status', 'pending')
+            ->where('enrollment_payments.status', PaymentVerificationStatus::Pending->value)
             ->selectRaw('COALESCE(SUM(enrollment_payments.amount), 0) as total_amount, COUNT(DISTINCT users.id) as students_count')
             ->first();
 
         $paymentSnapshot = DB::table('enrollment_payments')
-            ->selectRaw('COUNT(*) as total, SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as approved', ['approved'])
+            ->selectRaw('COUNT(*) as total, SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as approved', [PaymentVerificationStatus::Approved->value])
             ->first();
 
         $collectionRate = ($paymentSnapshot && $paymentSnapshot->total > 0)
@@ -319,12 +320,12 @@ class PaymentsController extends Controller
             return response()->json(['error' => 'Pago no encontrado.'], 404);
         }
 
-        if (strtolower($payment->status) === 'approved') {
+        if (strtolower($payment->status) === PaymentVerificationStatus::Approved->value) {
             return response()->json(['message' => 'Pago ya se encuentra aprobado.'], 200);
         }
 
         DB::table('enrollment_payments')->where('id', $id)->update([
-            'status' => 'approved',
+            'status' => PaymentVerificationStatus::Approved->value,
             'updated_at' => Carbon::now(),
         ]);
 
@@ -340,12 +341,12 @@ class PaymentsController extends Controller
             return response()->json(['error' => 'Pago no encontrado.'], 404);
         }
 
-        if (strtolower($payment->status) === 'rejected') {
+        if (strtolower($payment->status) === PaymentVerificationStatus::Rejected->value) {
             return response()->json(['message' => 'Pago ya se encuentra rechazado.'], 200);
         }
 
         DB::table('enrollment_payments')->where('id', $id)->update([
-            'status' => 'rejected',
+            'status' => PaymentVerificationStatus::Rejected->value,
             'updated_at' => Carbon::now(),
         ]);
 
