@@ -313,6 +313,69 @@ class PaymentsController extends Controller
         return response()->json($payment);
     }
 
+    public function checkEvidence($id)
+    {
+        $payment = DB::table('enrollment_payments')
+            ->select('evidence_path')
+            ->where('id', $id)
+            ->first();
+
+        if (! $payment) {
+            return response()->json(['exists' => false, 'error' => 'Pago no encontrado'], 404);
+        }
+
+        if (! $payment->evidence_path) {
+            return response()->json(['exists' => false, 'message' => 'No hay evidencia adjunta']);
+        }
+
+        $evidencePath = trim($payment->evidence_path);
+        
+        if (preg_match('/^https?:\/\//i', $evidencePath)) {
+            return response()->json(['exists' => true, 'url' => $evidencePath, 'is_external' => true]);
+        }
+
+        $storagePath = storage_path('app/public/' . $evidencePath);
+        $fileExists = file_exists($storagePath) && is_file($storagePath);
+
+        return response()->json([
+            'exists' => $fileExists,
+            'url' => $fileExists ? url('api/pagos/' . $id . '/evidence') : null,
+            'is_external' => false,
+            'path' => $evidencePath
+        ]);
+    }
+
+    public function getEvidence($id)
+    {
+        $payment = DB::table('enrollment_payments')
+            ->select('evidence_path')
+            ->where('id', $id)
+            ->first();
+
+        if (! $payment || ! $payment->evidence_path) {
+            abort(404, 'Evidencia no encontrada');
+        }
+
+        $evidencePath = trim($payment->evidence_path);
+        
+        if (preg_match('/^https?:\/\//i', $evidencePath)) {
+            return redirect($evidencePath);
+        }
+
+        $storagePath = storage_path('app/public/' . $evidencePath);
+        
+        if (! file_exists($storagePath) || ! is_file($storagePath)) {
+            abort(404, 'Archivo no encontrado');
+        }
+
+        $mimeType = mime_content_type($storagePath);
+        
+        return response()->file($storagePath, [
+            'Content-Type' => $mimeType,
+            'Cache-Control' => 'public, max-age=3600'
+        ]);
+    }
+
     //Aprobar pagos de estudiantes
 
     public function approve(Request $request, $id)
