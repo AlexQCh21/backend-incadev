@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Str;
 use IncadevUns\CoreDomain\Enums\PaymentVerificationStatus;
+use IncadevUns\CoreDomain\Enums\PaymentStatus;
+use IncadevUns\CoreDomain\Enums\EnrollmentAcademicStatus;
 
 class PaymentsController extends Controller
 {
@@ -311,7 +313,7 @@ class PaymentsController extends Controller
         return response()->json($payment);
     }
 
-    //Aprobar/Rechazar pagos de estudiantes
+    //Aprobar pagos de estudiantes
 
     public function approve(Request $request, $id)
     {
@@ -324,15 +326,32 @@ class PaymentsController extends Controller
             return response()->json(['message' => 'Pago ya se encuentra aprobado.'], 200);
         }
 
-        DB::table('enrollment_payments')->where('id', $id)->update([
-            'status' => PaymentVerificationStatus::Approved->value,
-            'updated_at' => Carbon::now(),
-        ]);
+        DB::beginTransaction();
+        try {
+            DB::table('enrollment_payments')->where('id', $id)->update([
+                'status' => PaymentVerificationStatus::Approved->value,
+                'updated_at' => Carbon::now(),
+            ]);
 
-        Log::info('Pago aprobado', ['payment_id' => $id, 'user_ip' => $request->ip()]);
+            DB::table('enrollments')->where('id', $payment->enrollment_id)->update([
+                'payment_status' => PaymentStatus::Paid->value,
+                'academic_status' => EnrollmentAcademicStatus::Active->value,
+                'updated_at' => Carbon::now(),
+            ]);
 
-        return response()->json(['message' => 'Pago aprobado correctamente.']);
+            DB::commit();
+
+            Log::info('Pago aprobado', ['payment_id' => $id, 'enrollment_id' => $payment->enrollment_id]);
+
+            return response()->json(['message' => 'Pago aprobado correctamente.']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al aprobar pago', ['payment_id' => $id, 'error' => $e->getMessage()]);
+            return response()->json(['error' => 'Error al aprobar el pago.'], 500);
+        }
     }
+
+    //Rechazar pagos de estudiantes
 
     public function reject(Request $request, $id)
     {
@@ -345,14 +364,29 @@ class PaymentsController extends Controller
             return response()->json(['message' => 'Pago ya se encuentra rechazado.'], 200);
         }
 
-        DB::table('enrollment_payments')->where('id', $id)->update([
-            'status' => PaymentVerificationStatus::Rejected->value,
-            'updated_at' => Carbon::now(),
-        ]);
+        DB::beginTransaction();
+        try {
+            DB::table('enrollment_payments')->where('id', $id)->update([
+                'status' => PaymentVerificationStatus::Rejected->value,
+                'updated_at' => Carbon::now(),
+            ]);
 
-        Log::info('Pago rechazado', ['payment_id' => $id, 'user_ip' => $request->ip()]);
+            DB::table('enrollments')->where('id', $payment->enrollment_id)->update([
+                'payment_status' => PaymentStatus::Cancelled->value,
+                'academic_status' => EnrollmentAcademicStatus::Failed->value,
+                'updated_at' => Carbon::now(),
+            ]);
 
-        return response()->json(['message' => 'Pago rechazado correctamente.']);
+            DB::commit();
+
+            Log::info('Pago rechazado', ['payment_id' => $id, 'enrollment_id' => $payment->enrollment_id]);
+
+            return response()->json(['message' => 'Pago rechazado correctamente.']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al rechazar pago', ['payment_id' => $id, 'error' => $e->getMessage()]);
+            return response()->json(['error' => 'Error al rechazar el pago.'], 500);
+        }
     }
 }
 
