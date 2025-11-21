@@ -18,7 +18,7 @@ Route::middleware(['auth:sanctum', 'role:admin|system_viewer'])->get('/viewer-da
 
 Route::get('/dashboard/groups', [DashboardController::class, 'getGroups']);
 
-// Rutas pagos (sin autenticación por ahora)
+// PAYMENTS ROUTES (sin autenticación por ahora)
 Route::prefix('pagos')->group(function () {
     Route::get('/', [PaymentsController::class, 'index']);
     Route::get('/export-csv', [PaymentsController::class, 'exportCsv']);
@@ -26,7 +26,8 @@ Route::prefix('pagos')->group(function () {
     Route::get('/export-data', [PaymentsController::class, 'getExportData']);
     Route::get('/{id}/invoice', [PaymentsController::class, 'downloadInvoice']);
     Route::get('/{id}/invoice-data', [PaymentsController::class, 'getInvoiceData']);
-    // Endpoints para validar pago de estudiantes
+    Route::get('/{id}/check-evidence', [PaymentsController::class, 'checkEvidence']);
+    Route::get('/{id}/evidence', [PaymentsController::class, 'getEvidence']);
     Route::post('/{id}/approve', [PaymentsController::class, 'approve']);
     Route::post('/{id}/reject', [PaymentsController::class, 'reject']);
 });
