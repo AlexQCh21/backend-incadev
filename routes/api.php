@@ -5,10 +5,12 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Payments\PaymentsController;
 use App\Http\Controllers\Gestion_Academica\StudentController;
+use App\Http\Controllers\Finanzas\FinancialReportsController;
 use App\Http\Controllers\AcademicProcesses\TeacherGroupController;
 use App\Http\Controllers\AcademicProcesses\EnrollmentStatusController;
 use App\Http\Controllers\Gestion_Academica\AcademicHistoryController;
 use App\Http\Controllers\Gestion_Academica\EnrollmentController;
+use App\Http\Controllers\AcademicProcesses\ModuleController;
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/test', function (Request $request) {
@@ -58,6 +60,14 @@ Route::prefix('academic-processes')->group(function () {
     Route::put('/enrollment-status/{id}/payment-status', [EnrollmentStatusController::class, 'updatePaymentStatus']);
     Route::put('/enrollment-status/{id}/academic-status', [EnrollmentStatusController::class, 'updateAcademicStatus']);
     Route::put('/enrollment-status/{id}/result', [EnrollmentStatusController::class, 'updateEnrollmentResult']);
+
+    //Module
+    Route::get('/courses', [ModuleController::class, 'getCourses']);
+    Route::get('/course-version/{courseVersionId}', [ModuleController::class, 'getCourseVersion']);
+    Route::post('/', [ModuleController::class, 'store']);
+    Route::put('/{id}', [ModuleController::class, 'update']);
+    Route::delete('/{id}', [ModuleController::class, 'destroy']);
+    Route::post('/reorder', [ModuleController::class, 'reorder']);
 });
 
 // PAYMENTS ROUTES (sin autenticación por ahora)
@@ -79,6 +89,16 @@ Route::prefix('finanzas')->group(function () {
     Route::get('/balance-general', [\App\Http\Controllers\Finanzas\BalanceGeneralController::class, 'index']);
 });
 
+Route::prefix('financial-reports')->group(function () {
+    // Ruta principal para reportes contables
+    Route::get('/report', [FinancialReportsController::class, 'getReport']);
+    Route::get('/balance-general', [FinancialReportsController::class, 'getBalanceGeneral']);
+});
+
+// Rutas de compatibilidad (opcionales)
+Route::prefix('reports')->group(function () {
+    Route::get('/', [FinancialReportsController::class, 'getReport']);
+});
 //ACADEMIC MANAGEMENT ROUTES
 Route::prefix('gestion-academica')->group(function () {
     // IMPORTANTE: Rutas específicas primero
