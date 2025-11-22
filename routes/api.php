@@ -3,8 +3,10 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\PaymentsController;
+use App\Http\Controllers\Payments\PaymentsController;
 use App\Http\Controllers\Gestion_Academica\StudentController;
+use App\Http\Controllers\AcademicProcesses\TeacherGroupController;
+use App\Http\Controllers\AcademicProcesses\EnrollmentStatusController;
 use App\Http\Controllers\Gestion_Academica\AcademicHistoryController;
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -25,11 +27,36 @@ Route::prefix('dashboard')->group(function () {
     Route::get('/export-data', [DashboardController::class, 'exportDashboardData']);
 });
 
+//ACADEMIC MANAGEMENT ROUTES
+Route::prefix('gestion-academica')->group(function () {
+    // IMPORTANTE: Rutas específicas primero
+    Route::get('/estudiantes/statistics', [StudentController::class, 'statistics']);
+    Route::get('/estudiantes/export/csv', [StudentController::class, 'exportCsv']);
+    Route::get('/estudiantes/export/pdf', [StudentController::class, 'exportPdf']);
+    Route::get('/estudiantes/export-data', [StudentController::class, 'getExportData']);
+    Route::get('/estudiantes/{id}/enrollments', [StudentController::class, 'enrollments']);
+    
+    // Rutas generales después
+    Route::get('/estudiantes', [StudentController::class, 'index']);
+    Route::post('/estudiantes', [StudentController::class, 'store']);
+    Route::get('/estudiantes/{id}', [StudentController::class, 'show']);
+    Route::put('/estudiantes/{id}', [StudentController::class, 'update']);
+    Route::delete('/estudiantes/{id}', [StudentController::class, 'destroy']);
+});
+
 //ACADEMIC PROCESSES ROUTES (sin autenticación por ahora)
 Route::prefix('academic-processes')->group(function () {
-    Route::get('/teacher-groups', [\App\Http\Controllers\AcademicProcesses\TeacherGroupController::class, 'index']);
-    Route::post('/teacher-groups/assign', [\App\Http\Controllers\AcademicProcesses\TeacherGroupController::class, 'assign']);
-    Route::delete('/teacher-groups/remove', [\App\Http\Controllers\AcademicProcesses\TeacherGroupController::class, 'remove']);
+    // Teacher Groups
+    Route::get('/teacher-groups', [TeacherGroupController::class, 'index']);
+    Route::post('/teacher-groups/assign', [TeacherGroupController::class, 'assign']);
+    Route::delete('/teacher-groups/remove', [TeacherGroupController::class, 'remove']);
+    
+    // Enrollment Status
+    Route::get('/enrollment-status', [EnrollmentStatusController::class, 'index']);
+    Route::get('/enrollment-status/{id}', [EnrollmentStatusController::class, 'show']);
+    Route::put('/enrollment-status/{id}/payment-status', [EnrollmentStatusController::class, 'updatePaymentStatus']);
+    Route::put('/enrollment-status/{id}/academic-status', [EnrollmentStatusController::class, 'updateAcademicStatus']);
+    Route::put('/enrollment-status/{id}/result', [EnrollmentStatusController::class, 'updateEnrollmentResult']);
 });
 
 // PAYMENTS ROUTES (sin autenticación por ahora)
