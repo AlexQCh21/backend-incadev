@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PaymentsController;
+use App\Http\Controllers\Gestion_Academica\StudentController;
 use App\Http\Controllers\Finanzas\FinancialReportsController;
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -17,6 +18,36 @@ Route::middleware(['auth:sanctum', 'role:admin|system_viewer'])->get('/viewer-da
 });
 
 Route::get('/dashboard/groups', [DashboardController::class, 'getGroups']);
+
+//DASHBOARD ROUTES
+Route::prefix('dashboard')->group(function () {
+    Route::get('/data', [DashboardController::class, 'getDashboardData']);
+    Route::get('/export-data', [DashboardController::class, 'exportDashboardData']);
+});
+
+//ACADEMIC MANAGEMENT ROUTES
+Route::prefix('gestion-academica')->group(function () {
+    // IMPORTANTE: Rutas específicas primero
+    Route::get('/estudiantes/statistics', [StudentController::class, 'statistics']);
+    Route::get('/estudiantes/export/csv', [StudentController::class, 'exportCsv']);
+    Route::get('/estudiantes/export/pdf', [StudentController::class, 'exportPdf']);
+    Route::get('/estudiantes/export-data', [StudentController::class, 'getExportData']);
+    Route::get('/estudiantes/{id}/enrollments', [StudentController::class, 'enrollments']);
+
+    // Rutas generales después
+    Route::get('/estudiantes', [StudentController::class, 'index']);
+    Route::post('/estudiantes', [StudentController::class, 'store']);
+    Route::get('/estudiantes/{id}', [StudentController::class, 'show']);
+    Route::put('/estudiantes/{id}', [StudentController::class, 'update']);
+    Route::delete('/estudiantes/{id}', [StudentController::class, 'destroy']);
+});
+
+//ACADEMIC PROCESSES ROUTES (sin autenticación por ahora)
+Route::prefix('academic-processes')->group(function () {
+    Route::get('/teacher-groups', [\App\Http\Controllers\AcademicProcesses\TeacherGroupController::class, 'index']);
+    Route::post('/teacher-groups/assign', [\App\Http\Controllers\AcademicProcesses\TeacherGroupController::class, 'assign']);
+    Route::delete('/teacher-groups/remove', [\App\Http\Controllers\AcademicProcesses\TeacherGroupController::class, 'remove']);
+});
 
 // PAYMENTS ROUTES (sin autenticación por ahora)
 Route::prefix('pagos')->group(function () {
@@ -32,22 +63,19 @@ Route::prefix('pagos')->group(function () {
     Route::post('/{id}/reject', [PaymentsController::class, 'reject']);
 });
 
-//DASHBOARD ROUTES
-Route::prefix('dashboard')->group(function () {
-    Route::get('/data', [DashboardController::class, 'getDashboardData']);
-    Route::get('/export-data', [DashboardController::class, 'exportDashboardData']);
-});
-
 //FINANZAS ROUTES
 Route::prefix('finanzas')->group(function () {
     Route::get('/balance-general', [\App\Http\Controllers\Finanzas\BalanceGeneralController::class, 'index']);
 });
 
 Route::prefix('financial-reports')->group(function () {
-    Route::get('/metrics', [FinancialReportsController::class, 'getFinancialMetrics']);
-    Route::get('/monthly-revenue', [FinancialReportsController::class, 'getMonthlyRevenueData']);
-    Route::get('/revenue-distribution', [FinancialReportsController::class, 'getRevenueDistribution']);
-    Route::get('/courses-detailed', [FinancialReportsController::class, 'getCoursesDetailedData']);
-    Route::get('/executive-summary', [FinancialReportsController::class, 'getExecutiveSummary']);
-    Route::post('/generate-pdf', [FinancialReportsController::class, 'generatePDFReport']);
+    // Ruta principal para reportes contables
+    Route::get('/report', [FinancialReportsController::class, 'getReport']);
+    Route::get('/balance-general', [FinancialReportsController::class, 'getBalanceGeneral']);
+
+});
+
+// Rutas de compatibilidad (opcionales)
+Route::prefix('reports')->group(function () {
+    Route::get('/', [FinancialReportsController::class, 'getReport']);
 });
