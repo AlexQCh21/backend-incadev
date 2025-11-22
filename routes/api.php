@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PaymentsController;
 use App\Http\Controllers\Gestion_Academica\StudentController;
+use App\Http\Controllers\Gestion_Academica\AcademicHistoryController;
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/test', function (Request $request) {
@@ -58,11 +59,22 @@ Route::prefix('gestion-academica')->group(function () {
     Route::get('/estudiantes/export/pdf', [StudentController::class, 'exportPdf']);
     Route::get('/estudiantes/export-data', [StudentController::class, 'getExportData']);
     Route::get('/estudiantes/{id}/enrollments', [StudentController::class, 'enrollments']);
-    
+
     // Rutas generales después
     Route::get('/estudiantes', [StudentController::class, 'index']);
     Route::post('/estudiantes', [StudentController::class, 'store']);
     Route::get('/estudiantes/{id}', [StudentController::class, 'show']);
     Route::put('/estudiantes/{id}', [StudentController::class, 'update']);
     Route::delete('/estudiantes/{id}', [StudentController::class, 'destroy']);
+
+    // Rutas principales de Historial Académico
+    Route::prefix('historial-academico')->group(function () {
+        Route::get('/', [AcademicHistoryController::class, 'index']);
+        Route::get('/{id}', [AcademicHistoryController::class, 'show']);
+        Route::get('/{id}/cursos', [AcademicHistoryController::class, 'getCourses']);
+        Route::get('/{id}/certificados', [AcademicHistoryController::class, 'getCertificates']);
+        Route::get('/exportar/csv', [AcademicHistoryController::class, 'exportCSV']);
+        Route::get('/exportar/datos', [AcademicHistoryController::class, 'exportData']);
+
+    });
 });
