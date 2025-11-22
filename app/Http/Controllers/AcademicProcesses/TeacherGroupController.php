@@ -115,6 +115,22 @@ class TeacherGroupController extends Controller
             ], 400);
         }
 
+        $group = DB::table('groups')
+            ->where('id', $validated['group_id'])
+            ->first();
+
+        if (!$group) {
+            return response()->json([
+                'error' => 'El grupo no existe.'
+            ], 404);
+        }
+
+        if (in_array(strtolower($group->status), [GroupStatus::Cancelled->value, GroupStatus::Completed->value])) {
+            return response()->json([
+                'error' => 'No se pueden asignar docentes a grupos cancelados o completados.'
+            ], 400);
+        }
+
         $exists = DB::table('group_teachers')
             ->where('group_id', $validated['group_id'])
             ->where('user_id', $validated['user_id'])
@@ -122,8 +138,8 @@ class TeacherGroupController extends Controller
 
         if ($exists) {
             return response()->json([
-                'message' => 'El docente ya está asignado a este grupo.'
-            ], 200);
+                'error' => 'El docente ya está asignado a este grupo.'
+            ], 409);
         }
 
         try {

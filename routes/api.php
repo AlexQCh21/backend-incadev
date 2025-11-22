@@ -24,6 +24,23 @@ Route::prefix('dashboard')->group(function () {
     Route::get('/export-data', [DashboardController::class, 'exportDashboardData']);
 });
 
+//ACADEMIC MANAGEMENT ROUTES
+Route::prefix('gestion-academica')->group(function () {
+    // IMPORTANTE: Rutas específicas primero
+    Route::get('/estudiantes/statistics', [StudentController::class, 'statistics']);
+    Route::get('/estudiantes/export/csv', [StudentController::class, 'exportCsv']);
+    Route::get('/estudiantes/export/pdf', [StudentController::class, 'exportPdf']);
+    Route::get('/estudiantes/export-data', [StudentController::class, 'getExportData']);
+    Route::get('/estudiantes/{id}/enrollments', [StudentController::class, 'enrollments']);
+    
+    // Rutas generales después
+    Route::get('/estudiantes', [StudentController::class, 'index']);
+    Route::post('/estudiantes', [StudentController::class, 'store']);
+    Route::get('/estudiantes/{id}', [StudentController::class, 'show']);
+    Route::put('/estudiantes/{id}', [StudentController::class, 'update']);
+    Route::delete('/estudiantes/{id}', [StudentController::class, 'destroy']);
+});
+
 //ACADEMIC PROCESSES ROUTES (sin autenticación por ahora)
 Route::prefix('academic-processes')->group(function () {
     Route::get('/teacher-groups', [\App\Http\Controllers\AcademicProcesses\TeacherGroupController::class, 'index']);
@@ -48,21 +65,4 @@ Route::prefix('pagos')->group(function () {
 //FINANZAS ROUTES
 Route::prefix('finanzas')->group(function () {
     Route::get('/balance-general', [\App\Http\Controllers\Finanzas\BalanceGeneralController::class, 'index']);
-});
-
-//ACADEMIC MANAGEMENT ROUTES
-Route::prefix('gestion-academica')->group(function () {
-    // IMPORTANTE: Rutas específicas primero
-    Route::get('/estudiantes/statistics', [StudentController::class, 'statistics']);
-    Route::get('/estudiantes/export/csv', [StudentController::class, 'exportCsv']);
-    Route::get('/estudiantes/export/pdf', [StudentController::class, 'exportPdf']);
-    Route::get('/estudiantes/export-data', [StudentController::class, 'getExportData']);
-    Route::get('/estudiantes/{id}/enrollments', [StudentController::class, 'enrollments']);
-    
-    // Rutas generales después
-    Route::get('/estudiantes', [StudentController::class, 'index']);
-    Route::post('/estudiantes', [StudentController::class, 'store']);
-    Route::get('/estudiantes/{id}', [StudentController::class, 'show']);
-    Route::put('/estudiantes/{id}', [StudentController::class, 'update']);
-    Route::delete('/estudiantes/{id}', [StudentController::class, 'destroy']);
 });
