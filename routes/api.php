@@ -18,6 +18,19 @@ Route::middleware(['auth:sanctum', 'role:admin|system_viewer'])->get('/viewer-da
 
 Route::get('/dashboard/groups', [DashboardController::class, 'getGroups']);
 
+//DASHBOARD ROUTES
+Route::prefix('dashboard')->group(function () {
+    Route::get('/data', [DashboardController::class, 'getDashboardData']);
+    Route::get('/export-data', [DashboardController::class, 'exportDashboardData']);
+});
+
+//ACADEMIC PROCESSES ROUTES (sin autenticación por ahora)
+Route::prefix('academic-processes')->group(function () {
+    Route::get('/teacher-groups', [\App\Http\Controllers\AcademicProcesses\TeacherGroupController::class, 'index']);
+    Route::post('/teacher-groups/assign', [\App\Http\Controllers\AcademicProcesses\TeacherGroupController::class, 'assign']);
+    Route::delete('/teacher-groups/remove', [\App\Http\Controllers\AcademicProcesses\TeacherGroupController::class, 'remove']);
+});
+
 // PAYMENTS ROUTES (sin autenticación por ahora)
 Route::prefix('pagos')->group(function () {
     Route::get('/', [PaymentsController::class, 'index']);
@@ -30,12 +43,6 @@ Route::prefix('pagos')->group(function () {
     Route::get('/{id}/evidence', [PaymentsController::class, 'getEvidence']);
     Route::post('/{id}/approve', [PaymentsController::class, 'approve']);
     Route::post('/{id}/reject', [PaymentsController::class, 'reject']);
-});
-
-//DASHBOARD ROUTES
-Route::prefix('dashboard')->group(function () {
-    Route::get('/data', [DashboardController::class, 'getDashboardData']);
-    Route::get('/export-data', [DashboardController::class, 'exportDashboardData']);
 });
 
 //FINANZAS ROUTES
