@@ -8,6 +8,7 @@ use App\Http\Controllers\Gestion_Academica\StudentController;
 use App\Http\Controllers\AcademicProcesses\TeacherGroupController;
 use App\Http\Controllers\AcademicProcesses\EnrollmentStatusController;
 use App\Http\Controllers\Gestion_Academica\AcademicHistoryController;
+use App\Http\Controllers\Gestion_Academica\EnrollmentController;
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/test', function (Request $request) {
@@ -35,7 +36,7 @@ Route::prefix('gestion-academica')->group(function () {
     Route::get('/estudiantes/export/pdf', [StudentController::class, 'exportPdf']);
     Route::get('/estudiantes/export-data', [StudentController::class, 'getExportData']);
     Route::get('/estudiantes/{id}/enrollments', [StudentController::class, 'enrollments']);
-    
+
     // Rutas generales después
     Route::get('/estudiantes', [StudentController::class, 'index']);
     Route::post('/estudiantes', [StudentController::class, 'store']);
@@ -50,7 +51,7 @@ Route::prefix('academic-processes')->group(function () {
     Route::get('/teacher-groups', [TeacherGroupController::class, 'index']);
     Route::post('/teacher-groups/assign', [TeacherGroupController::class, 'assign']);
     Route::delete('/teacher-groups/remove', [TeacherGroupController::class, 'remove']);
-    
+
     // Enrollment Status
     Route::get('/enrollment-status', [EnrollmentStatusController::class, 'index']);
     Route::get('/enrollment-status/{id}', [EnrollmentStatusController::class, 'show']);
@@ -102,6 +103,20 @@ Route::prefix('gestion-academica')->group(function () {
         Route::get('/{id}/certificados', [AcademicHistoryController::class, 'getCertificates']);
         Route::get('/exportar/csv', [AcademicHistoryController::class, 'exportCSV']);
         Route::get('/exportar/datos', [AcademicHistoryController::class, 'exportData']);
+    });
 
+    // Rutas de enrollments
+    Route::prefix('matriculas')->group(function () {
+        Route::get('/', [EnrollmentController::class, 'index']);
+        Route::post('/', [EnrollmentController::class, 'store']);
+        Route::get('/statistics', [EnrollmentController::class, 'statistics']);
+        Route::get('/export-csv', [EnrollmentController::class, 'exportCsv']);
+        Route::get('/export-pdf', [EnrollmentController::class, 'exportPdf']);
+        Route::get('/export-data', [EnrollmentController::class, 'getExportData']);
+        Route::get('/{id}', [EnrollmentController::class, 'show']);
+        Route::put('/{id}', [EnrollmentController::class, 'update']);
+        Route::patch('/{id}/payment-status', [EnrollmentController::class, 'updatePaymentStatus']);
+        Route::patch('/{id}/academic-status', [EnrollmentController::class, 'updateAcademicStatus']);
+        Route::delete('/{id}', [EnrollmentController::class, 'destroy']);
     });
 });
