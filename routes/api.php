@@ -9,6 +9,7 @@ use App\Http\Controllers\Finanzas\FinancialReportsController;
 use App\Http\Controllers\AcademicProcesses\TeacherGroupController;
 use App\Http\Controllers\AcademicProcesses\EnrollmentStatusController;
 use App\Http\Controllers\Gestion_Academica\AcademicHistoryController;
+use App\Http\Controllers\AcademicProcesses\ModuleController;
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/test', function (Request $request) {
@@ -51,13 +52,21 @@ Route::prefix('academic-processes')->group(function () {
     Route::get('/teacher-groups', [TeacherGroupController::class, 'index']);
     Route::post('/teacher-groups/assign', [TeacherGroupController::class, 'assign']);
     Route::delete('/teacher-groups/remove', [TeacherGroupController::class, 'remove']);
-    
+
     // Enrollment Status
     Route::get('/enrollment-status', [EnrollmentStatusController::class, 'index']);
     Route::get('/enrollment-status/{id}', [EnrollmentStatusController::class, 'show']);
     Route::put('/enrollment-status/{id}/payment-status', [EnrollmentStatusController::class, 'updatePaymentStatus']);
     Route::put('/enrollment-status/{id}/academic-status', [EnrollmentStatusController::class, 'updateAcademicStatus']);
     Route::put('/enrollment-status/{id}/result', [EnrollmentStatusController::class, 'updateEnrollmentResult']);
+
+    //Module
+    Route::get('/courses', [ModuleController::class, 'getCourses']);
+    Route::get('/course-version/{courseVersionId}', [ModuleController::class, 'getCourseVersion']);
+    Route::post('/', [ModuleController::class, 'store']);
+    Route::put('/{id}', [ModuleController::class, 'update']);
+    Route::delete('/{id}', [ModuleController::class, 'destroy']);
+    Route::post('/reorder', [ModuleController::class, 'reorder']);
 });
 
 // PAYMENTS ROUTES (sin autenticación por ahora)
@@ -83,7 +92,6 @@ Route::prefix('financial-reports')->group(function () {
     // Ruta principal para reportes contables
     Route::get('/report', [FinancialReportsController::class, 'getReport']);
     Route::get('/balance-general', [FinancialReportsController::class, 'getBalanceGeneral']);
-
 });
 
 // Rutas de compatibilidad (opcionales)
@@ -114,6 +122,5 @@ Route::prefix('gestion-academica')->group(function () {
         Route::get('/{id}/certificados', [AcademicHistoryController::class, 'getCertificates']);
         Route::get('/exportar/csv', [AcademicHistoryController::class, 'exportCSV']);
         Route::get('/exportar/datos', [AcademicHistoryController::class, 'exportData']);
-
     });
 });
