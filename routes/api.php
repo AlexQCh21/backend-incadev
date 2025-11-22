@@ -4,12 +4,12 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PaymentsController;
+use App\Http\Controllers\Gestion_Academica\StudentController;
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/test', function (Request $request) {
         return response()->json(['message' => 'API funcionando correctamente']);
     });
-
 });
 
 Route::middleware(['auth:sanctum', 'role:admin|system_viewer'])->get('/viewer-dashboard', function () {
@@ -41,4 +41,21 @@ Route::prefix('dashboard')->group(function () {
 //FINANZAS ROUTES
 Route::prefix('finanzas')->group(function () {
     Route::get('/balance-general', [\App\Http\Controllers\Finanzas\BalanceGeneralController::class, 'index']);
+});
+
+//ACADEMIC MANAGEMENT ROUTES
+Route::prefix('gestion-academica')->group(function () {
+    // IMPORTANTE: Rutas específicas primero
+    Route::get('/estudiantes/statistics', [StudentController::class, 'statistics']);
+    Route::get('/estudiantes/export/csv', [StudentController::class, 'exportCsv']);
+    Route::get('/estudiantes/export/pdf', [StudentController::class, 'exportPdf']);
+    Route::get('/estudiantes/export-data', [StudentController::class, 'getExportData']);
+    Route::get('/estudiantes/{id}/enrollments', [StudentController::class, 'enrollments']);
+    
+    // Rutas generales después
+    Route::get('/estudiantes', [StudentController::class, 'index']);
+    Route::post('/estudiantes', [StudentController::class, 'store']);
+    Route::get('/estudiantes/{id}', [StudentController::class, 'show']);
+    Route::put('/estudiantes/{id}', [StudentController::class, 'update']);
+    Route::delete('/estudiantes/{id}', [StudentController::class, 'destroy']);
 });
