@@ -56,7 +56,7 @@ class EnrollmentController extends Controller
         if ($search !== '') {
             $searchLower = Str::lower($search);
             $query->where(function ($q) use ($search, $searchLower) {
-                $q->whereHas('user', function ($userQuery) use ($searchLower) {
+                $q->whereHas('user', function ($userQuery) use ($searchLower, $search) {
                     $userQuery->whereRaw('LOWER(name) LIKE ?', ["%{$searchLower}%"])
                         ->orWhereRaw('LOWER(fullname) LIKE ?', ["%{$searchLower}%"])
                         ->orWhereRaw('LOWER(email) LIKE ?', ["%{$searchLower}%"])
