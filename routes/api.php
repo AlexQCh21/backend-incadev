@@ -32,6 +32,13 @@ Route::prefix('dashboard')->group(function () {
     Route::get('/export-data', [DashboardController::class, 'exportDashboardData']);
 });
 
+//INDICATORS ROUTES (KPIs)
+Route::prefix('indicadores')->group(function () {
+    Route::get('/', [App\Http\Controllers\Indicators\KpiController::class, 'index']);
+    Route::put('/{id}/goal', [App\Http\Controllers\Indicators\KpiController::class, 'updateGoal']);
+    Route::post('/recalculate', [App\Http\Controllers\Indicators\KpiController::class, 'recalculate']);
+    Route::get('/export-data', [App\Http\Controllers\Indicators\KpiController::class, 'exportData']);
+});
 
 
 //ACADEMIC PROCESSES ROUTES (sin autenticación por ahora)
