@@ -101,6 +101,7 @@ Route::prefix('gestion-documentaria')->group(function () {
     Route::get('/documentos/{id}', [\App\Http\Controllers\DocumentManagement\DocumentController::class, 'show']);
     Route::put('/documentos/{id}', [\App\Http\Controllers\DocumentManagement\DocumentController::class, 'update']);
     Route::delete('/documentos/{id}', [\App\Http\Controllers\DocumentManagement\DocumentController::class, 'destroy']);
+});
 
 Route::prefix('financial-reports')->group(function () {
     // Ruta principal para reportes contables
