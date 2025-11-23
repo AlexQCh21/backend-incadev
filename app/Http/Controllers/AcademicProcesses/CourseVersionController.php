@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CourseVersionController extends Controller
 {
@@ -350,7 +351,7 @@ class CourseVersionController extends Controller
     /**
      * Export course versions to CSV
      */
-    public function exportCsv(Request $request)
+    public function exportCsv(): StreamedResponse
     {
         $versions = CourseVersion::with(['course:id,name'])
             ->withCount(['modules as modules_count'])
@@ -360,10 +361,13 @@ class CourseVersionController extends Controller
 
         $filename = 'versiones_cursos_' . now()->format('Ymd_His') . '.csv';
 
-        return response()->streamDownload(function () use ($versions) {
+        return response()->stream(function () use ($versions) {
             $handle = fopen('php://output', 'w');
-            fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF)); // BOM UTF-8
 
+            // BOM UTF-8 para Excel
+            fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF));
+
+            // Headers
             fputcsv($handle, [
                 'ID',
                 'Curso',
@@ -377,6 +381,7 @@ class CourseVersionController extends Controller
                 'Fecha de Creación'
             ]);
 
+            // Data rows
             foreach ($versions as $version) {
                 $studentsCount = DB::table('enrollments')
                     ->join('groups', 'enrollments.group_id', '=', 'groups.id')
@@ -384,13 +389,18 @@ class CourseVersionController extends Controller
                     ->distinct('enrollments.user_id')
                     ->count('enrollments.user_id');
 
+                // ✅ Convertir el Enum a string
+                $statusValue = $version->status instanceof \BackedEnum
+                    ? $version->status->value
+                    : (string) $version->status;
+
                 fputcsv($handle, [
                     $version->id,
                     $version->course->name ?? 'N/A',
                     $version->version,
                     $version->name,
                     'S/. ' . number_format($version->price, 2),
-                    $this->getStatusLabel($version->status),
+                    $this->getStatusLabel($statusValue), // ✅ Pasar el string
                     $version->modules_count ?? 0,
                     $version->groups_count ?? 0,
                     $studentsCount,
@@ -399,8 +409,12 @@ class CourseVersionController extends Controller
             }
 
             fclose($handle);
-        }, $filename, [
+        }, 200, [
             'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
         ]);
     }
 
@@ -422,13 +436,18 @@ class CourseVersionController extends Controller
                 ->distinct('enrollments.user_id')
                 ->count('enrollments.user_id');
 
+            // ✅ Convertir el Enum a string
+            $statusValue = $version->status instanceof \BackedEnum
+                ? $version->status->value
+                : (string) $version->status;
+
             return [
                 'id' => $version->id,
                 'course_name' => $version->course->name ?? 'N/A',
                 'version' => $version->version,
                 'name' => $version->name,
                 'price' => number_format($version->price, 2),
-                'status' => $this->getStatusLabel($version->status),
+                'status' => $this->getStatusLabel($statusValue), // ✅ Pasar el string
                 'modules_count' => $version->modules_count ?? 0,
                 'groups_count' => $version->groups_count ?? 0,
                 'students_count' => $studentsCount,
@@ -444,11 +463,11 @@ class CourseVersionController extends Controller
     }
 
     /**
-     * Get status label in Spanish
+     * Get status label in Spanish - ✅ Mantener el type hint string
      */
     private function getStatusLabel(string $status): string
     {
-        return match($status) {
+        return match ($status) {
             'published' => 'Publicado',
             'draft' => 'Borrador',
             'archived' => 'Archivado',
