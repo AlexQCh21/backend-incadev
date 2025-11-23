@@ -10,6 +10,7 @@ use App\Http\Controllers\AcademicProcesses\TeacherGroupController;
 use App\Http\Controllers\AcademicProcesses\EnrollmentStatusController;
 use App\Http\Controllers\Gestion_Academica\AcademicHistoryController;
 use App\Http\Controllers\AcademicProcesses\ModuleController;
+use App\Http\Controllers\AcademicProcesses\GroupController;
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/test', function (Request $request) {
@@ -67,6 +68,17 @@ Route::prefix('academic-processes')->group(function () {
     Route::put('/{id}', [ModuleController::class, 'update']);
     Route::delete('/{id}', [ModuleController::class, 'destroy']);
     Route::post('/reorder', [ModuleController::class, 'reorder']);
+
+    //Groups
+    Route::prefix('groups')->group(function () {
+        Route::get('/', [GroupController::class, 'index']);
+        Route::get('/course-versions', [GroupController::class, 'getCourseVersions']);
+        Route::get('/{id}', [GroupController::class, 'show']);
+        Route::post('/', [GroupController::class, 'store']);
+        Route::put('/{id}', [GroupController::class, 'update']);
+        Route::delete('/{id}', [GroupController::class, 'destroy']);
+        Route::get('/{id}/statistics', [GroupController::class, 'statistics']);
+    });
 });
 
 // PAYMENTS ROUTES (sin autenticación por ahora)
