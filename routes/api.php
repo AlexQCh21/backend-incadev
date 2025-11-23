@@ -14,6 +14,7 @@ use App\Http\Controllers\AcademicProcesses\ModuleController;
 use App\Http\Controllers\AcademicProcesses\GroupController;
 use App\Http\Controllers\AcademicProcesses\AcademicSettingsController;
 use App\Http\Controllers\AcademicProcesses\CourseController;
+use App\Http\Controllers\AcademicProcesses\CourseVersionController;
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/test', function (Request $request) {
@@ -72,7 +73,17 @@ Route::prefix('academic-processes')->group(function () {
         Route::put('/{id}', [CourseController::class, 'update']);
         Route::delete('/{id}', [CourseController::class, 'destroy']);
     });
-
+    Route::prefix('course-versions')->group(function () {
+        Route::get('/', [CourseVersionController::class, 'index']);
+        Route::get('/statistics', [CourseVersionController::class, 'statistics']);
+        Route::get('/courses', [CourseVersionController::class, 'getCourses']); // Para dropdown
+        Route::get('/export/csv', [CourseVersionController::class, 'exportCsv']);
+        Route::get('/export/pdf', [CourseVersionController::class, 'exportPdf']);
+        Route::post('/', [CourseVersionController::class, 'store']);
+        Route::get('/{id}', [CourseVersionController::class, 'show']);
+        Route::put('/{id}', [CourseVersionController::class, 'update']);
+        Route::delete('/{id}', [CourseVersionController::class, 'destroy']);
+    });
     //Module
     Route::get('/courses', [ModuleController::class, 'getCourses']);
     Route::get('/course-version/{courseVersionId}', [ModuleController::class, 'getCourseVersion']);
