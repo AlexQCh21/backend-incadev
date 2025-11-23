@@ -206,17 +206,25 @@ class PaymentsController extends Controller
 
             fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF));
 
-            fputcsv($handle, ['ID', 'Estudiante', 'Agencia', 'Monto', 'Fecha Operación', 'Estado', 'N° Operación']);
+            fputcsv($handle, ['ID', 'Estudiante', 'N° Operación', 'Agencia', 'Monto', 'Fecha Operación', 'Estado']);
 
             foreach ($records as $row) {
+                $statusMap = [
+                    'approved' => 'Aprobado',
+                    'pending' => 'Pendiente',
+                    'rejected' => 'Rechazado',
+                ];
+                $status = strtolower($row->status ?? 'pending');
+                $statusText = $statusMap[$status] ?? ucfirst($status);
+
                 fputcsv($handle, [
                     $row->id,
                     trim($row->student_name) !== '' ? $row->student_name : 'Sin asignar',
+                    $row->operation_number ?? 'Sin número',
                     $row->agency_number ?? 'Sin agencia',
                     number_format((float) ($row->amount ?? 0), 2, ',', '.'),
                     $row->operation_date ? Carbon::parse($row->operation_date)->format('d/m/Y') : 'Sin fecha',
-                    ucfirst(strtolower($row->status ?? 'pendiente')),
-                    $row->operation_number ?? 'Sin número',
+                    $statusText,
                 ]);
             }
 

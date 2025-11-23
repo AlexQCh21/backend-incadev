@@ -11,6 +11,7 @@ use App\Http\Controllers\AcademicProcesses\EnrollmentStatusController;
 use App\Http\Controllers\Gestion_Academica\AcademicHistoryController;
 use App\Http\Controllers\Gestion_Academica\EnrollmentController;
 use App\Http\Controllers\AcademicProcesses\ModuleController;
+use App\Http\Controllers\AcademicProcesses\GroupController;
 use App\Http\Controllers\AcademicProcesses\AcademicSettingsController;
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -31,22 +32,7 @@ Route::prefix('dashboard')->group(function () {
     Route::get('/export-data', [DashboardController::class, 'exportDashboardData']);
 });
 
-//ACADEMIC MANAGEMENT ROUTES
-Route::prefix('gestion-academica')->group(function () {
-    // IMPORTANTE: Rutas específicas primero
-    Route::get('/estudiantes/statistics', [StudentController::class, 'statistics']);
-    Route::get('/estudiantes/export/csv', [StudentController::class, 'exportCsv']);
-    Route::get('/estudiantes/export/pdf', [StudentController::class, 'exportPdf']);
-    Route::get('/estudiantes/export-data', [StudentController::class, 'getExportData']);
-    Route::get('/estudiantes/{id}/enrollments', [StudentController::class, 'enrollments']);
 
-    // Rutas generales después
-    Route::get('/estudiantes', [StudentController::class, 'index']);
-    Route::post('/estudiantes', [StudentController::class, 'store']);
-    Route::get('/estudiantes/{id}', [StudentController::class, 'show']);
-    Route::put('/estudiantes/{id}', [StudentController::class, 'update']);
-    Route::delete('/estudiantes/{id}', [StudentController::class, 'destroy']);
-});
 
 //ACADEMIC PROCESSES ROUTES (sin autenticación por ahora)
 Route::prefix('academic-processes')->group(function () {
@@ -73,6 +59,17 @@ Route::prefix('academic-processes')->group(function () {
     Route::put('/{id}', [ModuleController::class, 'update']);
     Route::delete('/{id}', [ModuleController::class, 'destroy']);
     Route::post('/reorder', [ModuleController::class, 'reorder']);
+
+    //Groups
+    Route::prefix('groups')->group(function () {
+        Route::get('/', [GroupController::class, 'index']);
+        Route::get('/course-versions', [GroupController::class, 'getCourseVersions']);
+        Route::get('/{id}', [GroupController::class, 'show']);
+        Route::post('/', [GroupController::class, 'store']);
+        Route::put('/{id}', [GroupController::class, 'update']);
+        Route::delete('/{id}', [GroupController::class, 'destroy']);
+        Route::get('/{id}/statistics', [GroupController::class, 'statistics']);
+    });
 });
 
 // PAYMENTS ROUTES (sin autenticación por ahora)
@@ -92,6 +89,23 @@ Route::prefix('pagos')->group(function () {
 //FINANZAS ROUTES
 Route::prefix('finanzas')->group(function () {
     Route::get('/balance-general', [\App\Http\Controllers\Finanzas\BalanceGeneralController::class, 'index']);
+});
+
+
+//DOCUMENT MANAGEMENT ROUTES
+Route::prefix('gestion-documentaria')->group(function () {
+    // Rutas específicas primero
+    Route::get('/documentos/statistics', [\App\Http\Controllers\DocumentManagement\DocumentController::class, 'statistics']);
+    Route::get('/documentos/export/csv', [\App\Http\Controllers\DocumentManagement\DocumentController::class, 'exportCsv']);
+    Route::get('/documentos/export-data', [\App\Http\Controllers\DocumentManagement\DocumentController::class, 'getExportData']);
+    Route::get('/documentos/{id}/download', [\App\Http\Controllers\DocumentManagement\DocumentController::class, 'download']);
+
+    // Rutas generales
+    Route::get('/documentos', [\App\Http\Controllers\DocumentManagement\DocumentController::class, 'index']);
+    Route::post('/documentos', [\App\Http\Controllers\DocumentManagement\DocumentController::class, 'store']);
+    Route::get('/documentos/{id}', [\App\Http\Controllers\DocumentManagement\DocumentController::class, 'show']);
+    Route::put('/documentos/{id}', [\App\Http\Controllers\DocumentManagement\DocumentController::class, 'update']);
+    Route::delete('/documentos/{id}', [\App\Http\Controllers\DocumentManagement\DocumentController::class, 'destroy']);
 });
 
 Route::prefix('financial-reports')->group(function () {
@@ -144,4 +158,5 @@ Route::prefix('gestion-academica')->group(function () {
         Route::patch('/{id}/academic-status', [EnrollmentController::class, 'updateAcademicStatus']);
         Route::delete('/{id}', [EnrollmentController::class, 'destroy']);
     });
+
 });
