@@ -32,7 +32,7 @@ Route::prefix('gestion-academica')->group(function () {
     Route::get('/estudiantes/export/pdf', [StudentController::class, 'exportPdf']);
     Route::get('/estudiantes/export-data', [StudentController::class, 'getExportData']);
     Route::get('/estudiantes/{id}/enrollments', [StudentController::class, 'enrollments']);
-    
+
     // Rutas generales después
     Route::get('/estudiantes', [StudentController::class, 'index']);
     Route::post('/estudiantes', [StudentController::class, 'store']);
@@ -65,4 +65,20 @@ Route::prefix('pagos')->group(function () {
 //FINANZAS ROUTES
 Route::prefix('finanzas')->group(function () {
     Route::get('/balance-general', [\App\Http\Controllers\Finanzas\BalanceGeneralController::class, 'index']);
+});
+
+//DOCUMENT MANAGEMENT ROUTES
+Route::prefix('gestion-documentaria')->group(function () {
+    // Rutas específicas primero
+    Route::get('/documentos/statistics', [\App\Http\Controllers\DocumentManagement\DocumentController::class, 'statistics']);
+    Route::get('/documentos/export/csv', [\App\Http\Controllers\DocumentManagement\DocumentController::class, 'exportCsv']);
+    Route::get('/documentos/export-data', [\App\Http\Controllers\DocumentManagement\DocumentController::class, 'getExportData']);
+    Route::get('/documentos/{id}/download', [\App\Http\Controllers\DocumentManagement\DocumentController::class, 'download']);
+
+    // Rutas generales
+    Route::get('/documentos', [\App\Http\Controllers\DocumentManagement\DocumentController::class, 'index']);
+    Route::post('/documentos', [\App\Http\Controllers\DocumentManagement\DocumentController::class, 'store']);
+    Route::get('/documentos/{id}', [\App\Http\Controllers\DocumentManagement\DocumentController::class, 'show']);
+    Route::put('/documentos/{id}', [\App\Http\Controllers\DocumentManagement\DocumentController::class, 'update']);
+    Route::delete('/documentos/{id}', [\App\Http\Controllers\DocumentManagement\DocumentController::class, 'destroy']);
 });
