@@ -262,10 +262,16 @@ class DocumentController extends Controller
         // Estadísticas
         $stats = [
             'total_documents' => $documents->count(),
-            'pdf_count' => $documents->where('type', 'PDF')->count(),
-            'docx_count' => $documents->where('type', 'DOCX')->count(),
-            'xlsx_count' => $documents->where('type', 'XLSX')->count(),
-            'total_size' => $documents->sum('size'),
+            'academic_count' => $documents->where('type', 'Académico')->count(),
+            'administrative_count' => $documents->where('type', 'Administrativo')->count(),
+            'legal_count' => $documents->where('type', 'Legal')->count(),
+            'uploaded_this_month' => AdministrativeDocument::whereMonth('created_at', Carbon::now()->month)
+                ->whereYear('created_at', Carbon::now()->year)
+                ->count(),
+            'updated_this_month' => AdministrativeDocument::whereMonth('updated_at', Carbon::now()->month)
+                ->whereYear('updated_at', Carbon::now()->year)
+                ->whereColumn('updated_at', '!=', 'created_at')
+                ->count(),
         ];
 
         return response()->json([
