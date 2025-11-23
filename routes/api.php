@@ -13,6 +13,7 @@ use App\Http\Controllers\Gestion_Academica\EnrollmentController;
 use App\Http\Controllers\AcademicProcesses\ModuleController;
 use App\Http\Controllers\AcademicProcesses\GroupController;
 use App\Http\Controllers\AcademicProcesses\AcademicSettingsController;
+use App\Http\Controllers\AcademicProcesses\CourseController;
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/test', function (Request $request) {
@@ -36,7 +37,7 @@ Route::prefix('dashboard')->group(function () {
 
 //ACADEMIC PROCESSES ROUTES (sin autenticación por ahora)
 Route::prefix('academic-processes')->group(function () {
-        //Academic Settings
+    //Academic Settings
     Route::get('/academic-settings', [AcademicSettingsController::class, 'index']);
     Route::put('/academic-settings', [AcademicSettingsController::class, 'update']);
 
@@ -51,6 +52,19 @@ Route::prefix('academic-processes')->group(function () {
     Route::put('/enrollment-status/{id}/payment-status', [EnrollmentStatusController::class, 'updatePaymentStatus']);
     Route::put('/enrollment-status/{id}/academic-status', [EnrollmentStatusController::class, 'updateAcademicStatus']);
     Route::put('/enrollment-status/{id}/result', [EnrollmentStatusController::class, 'updateEnrollmentResult']);
+
+    //Cursos
+    Route::prefix('courses-management')->group(function () {
+        Route::get('/', [CourseController::class, 'index']);
+        Route::get('/statistics', [CourseController::class, 'statistics']);
+        Route::get('/export/csv', [CourseController::class, 'exportCsv']);
+        Route::get('/export/pdf', [CourseController::class, 'exportPdf']);
+        Route::get('/export-data', [CourseController::class, 'getExportData']);
+        Route::post('/', [CourseController::class, 'store']);
+        Route::get('/{id}', [CourseController::class, 'show']);
+        Route::put('/{id}', [CourseController::class, 'update']);
+        Route::delete('/{id}', [CourseController::class, 'destroy']);
+    });
 
     //Module
     Route::get('/courses', [ModuleController::class, 'getCourses']);
@@ -158,5 +172,4 @@ Route::prefix('gestion-academica')->group(function () {
         Route::patch('/{id}/academic-status', [EnrollmentController::class, 'updateAcademicStatus']);
         Route::delete('/{id}', [EnrollmentController::class, 'destroy']);
     });
-
 });
