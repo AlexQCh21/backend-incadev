@@ -11,6 +11,7 @@ use App\Http\Controllers\AcademicProcesses\EnrollmentStatusController;
 use App\Http\Controllers\Gestion_Academica\AcademicHistoryController;
 use App\Http\Controllers\Gestion_Academica\EnrollmentController;
 use App\Http\Controllers\AcademicProcesses\ModuleController;
+use App\Http\Controllers\AcademicProcesses\AcademicSettingsController;
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/test', function (Request $request) {
@@ -49,6 +50,10 @@ Route::prefix('gestion-academica')->group(function () {
 
 //ACADEMIC PROCESSES ROUTES (sin autenticación por ahora)
 Route::prefix('academic-processes')->group(function () {
+        //Academic Settings
+    Route::get('/academic-settings', [AcademicSettingsController::class, 'index']);
+    Route::put('/academic-settings', [AcademicSettingsController::class, 'update']);
+
     // Teacher Groups
     Route::get('/teacher-groups', [TeacherGroupController::class, 'index']);
     Route::post('/teacher-groups/assign', [TeacherGroupController::class, 'assign']);
