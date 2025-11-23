@@ -7,15 +7,10 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use IncadevUns\CoreDomain\Enums\GroupStatus;
 
 class TeacherGroupController extends Controller
 {
-    // Group Status
-    private const GROUP_PENDING = 'pending';
-    private const GROUP_ENROLLING = 'enrolling';
-    private const GROUP_ACTIVE = 'active';
-    private const GROUP_COMPLETED = 'completed';
-    private const GROUP_CANCELLED = 'cancelled';
 
     public function index(Request $request)
     {
@@ -184,6 +179,22 @@ class TeacherGroupController extends Controller
             'user_id' => 'required|integer|exists:users,id',
         ]);
 
+        $group = DB::table('groups')
+            ->where('id', $validated['group_id'])
+            ->first();
+
+        if (!$group) {
+            return response()->json([
+                'error' => 'El grupo no existe.'
+            ], 404);
+        }
+
+        if (in_array(strtolower($group->status), [GroupStatus::Cancelled->value, GroupStatus::Completed->value])) {
+            return response()->json([
+                'error' => 'No se pueden remover docentes de grupos cancelados o completados.'
+            ], 400);
+        }
+
         $exists = DB::table('group_teachers')
             ->where('group_id', $validated['group_id'])
             ->where('user_id', $validated['user_id'])
@@ -227,7 +238,7 @@ class TeacherGroupController extends Controller
         $totalGroups = DB::table('groups')->count();
 
         $activeGroups = DB::table('groups')
-            ->where('status', self::GROUP_ACTIVE)
+            ->where('status', GroupStatus::Active->value)
             ->count();
 
         $groupsWithTeachers = DB::table('groups')
