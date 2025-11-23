@@ -73,6 +73,7 @@ Route::prefix('academic-processes')->group(function () {
         Route::put('/{id}', [CourseController::class, 'update']);
         Route::delete('/{id}', [CourseController::class, 'destroy']);
     });
+    //Versiones
     Route::prefix('course-versions')->group(function () {
         Route::get('/', [CourseVersionController::class, 'index']);
         Route::get('/statistics', [CourseVersionController::class, 'statistics']);
