@@ -144,7 +144,6 @@ Route::prefix('gestion-documentaria')->group(function () {
     Route::get('/documentos/{id}', [\App\Http\Controllers\DocumentManagement\DocumentController::class, 'show']);
     Route::put('/documentos/{id}', [\App\Http\Controllers\DocumentManagement\DocumentController::class, 'update']);
     Route::delete('/documentos/{id}', [\App\Http\Controllers\DocumentManagement\DocumentController::class, 'destroy']);
-});
 
     // Rutas para Institute Directors
     Route::apiResource('institute-directors', \App\Http\Controllers\DocumentManagement\InstituteDirectorController::class);
