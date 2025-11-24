@@ -136,6 +136,11 @@ class AdministrativeSeeder extends Seeder
                 ['start_date' => Carbon::now()->addDays(20), 'end_date' => Carbon::now()->addMonths(3), 'status' => GroupStatus::Enrolling]
             );
 
+            $group4 = Group::firstOrCreate(
+                ['name' => 'Grupo D - IA-DS', 'course_version_id' => $version1->id],
+                ['start_date' => Carbon::now()->subMonths(6), 'end_date' => Carbon::now()->subMonths(3), 'status' => GroupStatus::Completed]
+            );
+
             
             $enrollments = [];
 
@@ -241,6 +246,149 @@ class AdministrativeSeeder extends Seeder
                 'status' => PaymentVerificationStatus::Approved,
                 'created_at' => Carbon::now()->subDay(),
                 'updated_at' => Carbon::now(),
+            ]);
+
+            // DOCENTES Y PERFILES
+            $teachers = [];
+
+            $teachers[] = $userModelClass::firstOrCreate(
+                ['dni' => '70000001'],
+                [
+                    'name' => 'Dr. Roberto Mendoza Silva',
+                    'email' => 'roberto.mendoza@incadev.edu',
+                    'password' => Hash::make('password123'),
+                    'phone' => '987654330',
+                ]
+            );
+
+            $teachers[] = $userModelClass::firstOrCreate(
+                ['dni' => '70000002'],
+                [
+                    'name' => 'Mg. Patricia Flores Vargas',
+                    'email' => 'patricia.flores@incadev.edu',
+                    'password' => Hash::make('password123'),
+                    'phone' => '987654331',
+                ]
+            );
+
+            $teachers[] = $userModelClass::firstOrCreate(
+                ['dni' => '70000003'],
+                [
+                    'name' => 'Ing. Carlos Ramírez López',
+                    'email' => 'carlos.ramirez@incadev.edu',
+                    'password' => Hash::make('password123'),
+                    'phone' => '987654332',
+                ]
+            );
+
+            $teachers[] = $userModelClass::firstOrCreate(
+                ['dni' => '70000004'],
+                [
+                    'name' => 'Dra. Ana María Torres',
+                    'email' => 'ana.torres@incadev.edu',
+                    'password' => Hash::make('password123'),
+                    'phone' => '987654333',
+                ]
+            );
+
+            $teachers[] = $userModelClass::firstOrCreate(
+                ['dni' => '70000005'],
+                [
+                    'name' => 'Mg. Jorge Luis Castillo',
+                    'email' => 'jorge.castillo@incadev.edu',
+                    'password' => Hash::make('password123'),
+                    'phone' => '987654334',
+                ]
+            );
+
+            // Crear perfiles de docentes
+            DB::table('teacher_profiles')->insertOrIgnore([
+                [
+                    'user_id' => $teachers[0]->id,
+                    'subject_areas' => json_encode(['Inteligencia Artificial', 'Machine Learning', 'Data Science']),
+                    'professional_summary' => 'Doctor en Ciencias de la Computación con 15 años de experiencia en IA y ML. Especialista en modelos de deep learning y procesamiento de lenguaje natural.',
+                    'cv_path' => 'cvs/roberto_mendoza.pdf',
+                    'created_at' => Carbon::now(),
+                    'updated_at' => Carbon::now(),
+                ],
+                [
+                    'user_id' => $teachers[1]->id,
+                    'subject_areas' => json_encode(['Gestión de Proyectos', 'Transformación Digital', 'Metodologías Ágiles']),
+                    'professional_summary' => 'Magíster en Gestión de Proyectos con certificación PMP. 10 años liderando proyectos de transformación digital en empresas multinacionales.',
+                    'cv_path' => 'cvs/patricia_flores.pdf',
+                    'created_at' => Carbon::now(),
+                    'updated_at' => Carbon::now(),
+                ],
+                [
+                    'user_id' => $teachers[2]->id,
+                    'subject_areas' => json_encode(['Desarrollo Web', 'Cloud Computing', 'DevOps']),
+                    'professional_summary' => 'Ingeniero de Software especializado en arquitecturas cloud y desarrollo full-stack. Certificado AWS Solutions Architect.',
+                    'cv_path' => 'cvs/carlos_ramirez.pdf',
+                    'created_at' => Carbon::now(),
+                    'updated_at' => Carbon::now(),
+                ],
+                [
+                    'user_id' => $teachers[3]->id,
+                    'subject_areas' => json_encode(['Data Science', 'Business Intelligence', 'Analítica Avanzada']),
+                    'professional_summary' => 'Doctora en Estadística con especialización en análisis de datos. Experta en visualización de datos y toma de decisiones basada en datos.',
+                    'cv_path' => 'cvs/ana_torres.pdf',
+                    'created_at' => Carbon::now(),
+                    'updated_at' => Carbon::now(),
+                ],
+                [
+                    'user_id' => $teachers[4]->id,
+                    'subject_areas' => json_encode(['Liderazgo Digital', 'Innovación', 'Gestión del Cambio']),
+                    'professional_summary' => 'Magíster en Administración con especialización en transformación digital. Consultor en innovación y gestión del cambio organizacional.',
+                    'cv_path' => 'cvs/jorge_castillo.pdf',
+                    'created_at' => Carbon::now(),
+                    'updated_at' => Carbon::now(),
+                ],
+            ]);
+
+            // Asignar docentes a grupos
+            DB::table('group_teachers')->insertOrIgnore([
+                [
+                    'group_id' => $group1->id,
+                    'user_id' => $teachers[0]->id,
+                    'created_at' => Carbon::now(),
+                    'updated_at' => Carbon::now(),
+                ],
+                [
+                    'group_id' => $group1->id,
+                    'user_id' => $teachers[3]->id,
+                    'created_at' => Carbon::now(),
+                    'updated_at' => Carbon::now(),
+                ],
+                [
+                    'group_id' => $group2->id,
+                    'user_id' => $teachers[1]->id,
+                    'created_at' => Carbon::now(),
+                    'updated_at' => Carbon::now(),
+                ],
+                [
+                    'group_id' => $group2->id,
+                    'user_id' => $teachers[4]->id,
+                    'created_at' => Carbon::now(),
+                    'updated_at' => Carbon::now(),
+                ],
+                [
+                    'group_id' => $group3->id,
+                    'user_id' => $teachers[2]->id,
+                    'created_at' => Carbon::now(),
+                    'updated_at' => Carbon::now(),
+                ],
+                [
+                    'group_id' => $group4->id,
+                    'user_id' => $teachers[0]->id,
+                    'created_at' => Carbon::now(),
+                    'updated_at' => Carbon::now(),
+                ],
+                [
+                    'group_id' => $group4->id,
+                    'user_id' => $teachers[3]->id,
+                    'created_at' => Carbon::now(),
+                    'updated_at' => Carbon::now(),
+                ],
             ]);
 
         });

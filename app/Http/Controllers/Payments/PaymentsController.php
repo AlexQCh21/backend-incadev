@@ -1,18 +1,21 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Payments;
 
+use App\Http\Controllers\Controller;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Str;
-use IncadevUns\CoreDomain\Enums\PaymentVerificationStatus;
+use IncadevUns\CoreDomain\Models\Enrollment;
 use IncadevUns\CoreDomain\Enums\PaymentStatus;
 use IncadevUns\CoreDomain\Enums\EnrollmentAcademicStatus;
+use IncadevUns\CoreDomain\Enums\PaymentVerificationStatus;
 
 class PaymentsController extends Controller
 {
+
     public function index(Request $request)
     {
         $search = trim((string) $request->input('search', ''));
@@ -195,17 +198,25 @@ class PaymentsController extends Controller
 
             fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF));
 
-            fputcsv($handle, ['ID', 'Estudiante', 'Agencia', 'Monto', 'Fecha Operación', 'Estado', 'N° Operación']);
+            fputcsv($handle, ['ID', 'Estudiante', 'N° Operación', 'Agencia', 'Monto', 'Fecha Operación', 'Estado']);
 
             foreach ($records as $row) {
+                $statusMap = [
+                    'approved' => 'Aprobado',
+                    'pending' => 'Pendiente',
+                    'rejected' => 'Rechazado',
+                ];
+                $status = strtolower($row->status ?? 'pending');
+                $statusText = $statusMap[$status] ?? ucfirst($status);
+
                 fputcsv($handle, [
                     $row->id,
                     trim($row->student_name) !== '' ? $row->student_name : 'Sin asignar',
+                    $row->operation_number ?? 'Sin número',
                     $row->agency_number ?? 'Sin agencia',
                     number_format((float) ($row->amount ?? 0), 2, ',', '.'),
                     $row->operation_date ? Carbon::parse($row->operation_date)->format('d/m/Y') : 'Sin fecha',
-                    ucfirst(strtolower($row->status ?? 'pendiente')),
-                    $row->operation_number ?? 'Sin número',
+                    $statusText,
                 ]);
             }
 
@@ -396,10 +407,10 @@ class PaymentsController extends Controller
                 'updated_at' => Carbon::now(),
             ]);
 
-            DB::table('enrollments')->where('id', $payment->enrollment_id)->update([
-                'payment_status' => PaymentStatus::Paid->value,
-                'academic_status' => EnrollmentAcademicStatus::Active->value,
-                'updated_at' => Carbon::now(),
+            $enrollment = Enrollment::findOrFail($payment->enrollment_id);
+            $enrollment->update([
+                'payment_status' => PaymentStatus::Paid,
+                'academic_status' => EnrollmentAcademicStatus::Active,
             ]);
 
             DB::commit();
@@ -434,10 +445,10 @@ class PaymentsController extends Controller
                 'updated_at' => Carbon::now(),
             ]);
 
-            DB::table('enrollments')->where('id', $payment->enrollment_id)->update([
-                'payment_status' => PaymentStatus::Cancelled->value,
-                'academic_status' => EnrollmentAcademicStatus::Failed->value,
-                'updated_at' => Carbon::now(),
+            $enrollment = Enrollment::findOrFail($payment->enrollment_id);
+            $enrollment->update([
+                'payment_status' => PaymentStatus::Cancelled,
+                'academic_status' => EnrollmentAcademicStatus::Failed,
             ]);
 
             DB::commit();
