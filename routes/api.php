@@ -233,16 +233,19 @@ Route::prefix('rrhh')->group(function () {
         Route::post('/applications', 'storeApplication');
     });
 
-    // Postulantes
+    // Postulantes - ORDEN CORRECTO
     Route::prefix('applicants')
     ->controller(ApplicantController::class)
     ->group(function () {
-        Route::get('/', 'index');
+        // ✅ RUTAS ESPECÍFICAS PRIMERO
+        Route::get('/roles', 'getAvailableRoles'); // ✅ PRIMERO - antes de /{id}
         Route::get('/stats', 'stats');
-        Route::get('/{id}', 'show');
-        Route::get('/{applicantId}/applications', 'getApplications');
-        Route::put('/applications/{applicationId}/status', 'updateApplicationStatus');
         Route::get('/offers/{offerId}/applications', 'getApplicationsByOffer');
         Route::put('/applications/{applicationId}/status', 'updateApplicationStatus');
+        
+        // ✅ RUTAS CON PARÁMETROS DESPUÉS
+        Route::get('/', 'index');
+        Route::get('/{id}', 'show');
+        Route::get('/{applicantId}/applications', 'getApplications');
     });
 });

@@ -144,16 +144,39 @@ class ApplicantController extends Controller
     {
         try {
             $validated = $request->validate([
-                'status' => 'required|in:pending,under_review,shortlisted,rejected,hired,withdrawn'
+                'status' => 'required|in:pending,under_review,shortlisted,rejected,hired,withdrawn',
+                'role' => 'sometimes|string|nullable' // ✅ NUEVO: Rol opcional
             ]);
 
-            $application = $this->applicantService->updateApplicationStatus($applicationId, $validated['status']);
+            $role = $validated['role'] ?? null;
 
-            return response()->json([
+            // ✅ VALIDAR: Si se contrata, debe enviarse un rol
+            if ($validated['status'] === 'hired' && !$role) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Se debe seleccionar un rol para contratar al postulante',
+                ], 422);
+            }
+
+            $application = $this->applicantService->updateApplicationStatus(
+                $applicationId, 
+                $validated['status'],
+                $role // ✅ Pasar el rol al servicio
+            );
+
+            $response = [
                 'success' => true,
                 'message' => 'Estado de aplicación actualizado',
                 'data' => $application->toArray(),
-            ]);
+            ];
+
+            // ✅ NUEVO: Mensaje especial cuando se contrata
+            if ($validated['status'] === 'hired') {
+                $response['message'] = 'Postulante contratado y usuario creado automáticamente';
+                $response['role_assigned'] = $role;
+            }
+
+            return response()->json($response);
 
         } catch (\Exception $e) {
             Log::error('Error in RRHH Applicants updateApplicationStatus: ' . $e->getMessage());
@@ -183,6 +206,28 @@ class ApplicantController extends Controller
             return response()->json([
                 'success' => false,
                 'error' => 'Error al cargar estadísticas',
+            ], 500);
+        }
+    }
+
+    /**
+     * ✅ NUEVO: Obtener roles disponibles
+     */
+    public function getAvailableRoles(): JsonResponse
+    {
+        try {
+            $roles = $this->applicantService->getAvailableRoles();
+            
+            return response()->json([
+                'success' => true,
+                'roles' => $roles
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error in RRHH Applicants getAvailableRoles: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al cargar roles disponibles',
             ], 500);
         }
     }
