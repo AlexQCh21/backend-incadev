@@ -4,6 +4,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PaymentsController;
+use App\Http\Controllers\RecursosHumanos\EmployeeController;
+use App\Http\Controllers\RecursosHumanos\OfferController;
+use App\Http\Controllers\RecursosHumanos\ApplicantController;
+
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/test', function (Request $request) {
@@ -41,4 +45,50 @@ Route::prefix('dashboard')->group(function () {
 //FINANZAS ROUTES
 Route::prefix('finanzas')->group(function () {
     Route::get('/balance-general', [\App\Http\Controllers\Finanzas\BalanceGeneralController::class, 'index']);
+});
+
+
+// Rutas de Recursos Humanos
+Route::prefix('rrhh')->group(function () {
+    
+    // Empleados
+    Route::get('/employees', [EmployeeController::class, 'index']);
+    Route::get('/employees/{id}', [EmployeeController::class, 'show']);
+    Route::patch('/employees/{id}', [EmployeeController::class, 'update']);
+    
+    // Contratos
+    Route::post('/employees/{id}/contracts', [EmployeeController::class, 'createContract']);
+    Route::patch('/employees/{id}/deactivate', [EmployeeController::class, 'deactivate']);
+    Route::post('/employees/{id}/activate', [EmployeeController::class, 'activate']);
+    Route::patch('/contracts/{contractId}', [EmployeeController::class, 'updateContract']);
+
+    // Ofertas
+    Route::prefix('offers')
+    ->controller(OfferController::class)
+    ->group(function () {
+        Route::get('/', 'index');
+        Route::post('/', 'store');
+        Route::get('/stats', 'stats');
+        Route::get('/{id}', 'show');
+        Route::put('/{id}', 'update');
+        Route::delete('/{id}', 'destroy');
+        Route::post('/{id}/close', 'close');
+        
+        // Aplicaciones
+        Route::get('/{offerId}/applications', 'getApplications');
+        Route::post('/applications', 'storeApplication');
+    });
+
+    // Postulantes
+    Route::prefix('applicants')
+    ->controller(ApplicantController::class)
+    ->group(function () {
+        Route::get('/', 'index');
+        Route::get('/stats', 'stats');
+        Route::get('/{id}', 'show');
+        Route::get('/{applicantId}/applications', 'getApplications');
+        Route::put('/applications/{applicationId}/status', 'updateApplicationStatus');
+        Route::get('/offers/{offerId}/applications', 'getApplicationsByOffer');
+        Route::put('/applications/{applicationId}/status', 'updateApplicationStatus');
+    });
 });
