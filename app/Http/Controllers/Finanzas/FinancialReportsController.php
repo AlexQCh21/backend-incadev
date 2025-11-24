@@ -67,13 +67,12 @@ class FinancialReportsController extends Controller
                 'active_courses' => $this->getActiveCoursesCount($filters),
             ],
             'monthly_data' => $this->getMonthlyFinancialData($filters),
+
+            'details' => [],
         ];
     }
 
 
-    /**
-     * Reporte de Nómina Detallado
-     */
     /**
      * Reporte de Nómina con Balance comparativo
      */
@@ -83,13 +82,11 @@ class FinancialReportsController extends Controller
         $payrollDetails = PayrollExpense::with(['contract.user.roles'])
             ->when(
                 $filters['start_date'],
-                fn($q) =>
-                $q->where('date', '>=', $filters['start_date'])
+                fn($q) => $q->where('date', '>=', $filters['start_date'])
             )
             ->when(
                 $filters['end_date'],
-                fn($q) =>
-                $q->where('date', '<=', $filters['end_date'])
+                fn($q) => $q->where('date', '<=', $filters['end_date'])
             )
             ->get()
             ->map(function ($expense) {
@@ -132,8 +129,6 @@ class FinancialReportsController extends Controller
             'details' => $payrollDetails,
         ];
     }
-
-
 
     /**
      * Reporte de Ingresos - Versión Mejorada
@@ -243,7 +238,6 @@ class FinancialReportsController extends Controller
             ],
         ]);
     }
-
 
     /**
      * Obtener ingresos por curso
@@ -392,11 +386,11 @@ class FinancialReportsController extends Controller
     }
 
     /**
-     * Obtener datos mensuales para gráficos
+     * Obtener datos mensuales para gráficos - ADAPTADO PARA LARAVEL
      */
     private function getMonthlyFinancialData(array $filters): array
     {
-        // Ingresos mensuales
+        // Ingresos mensuales usando Eloquent/Query Builder
         $revenueData = EnrollmentPayment::where('status', 'approved')
             ->when($filters['start_date'], function ($query) use ($filters) {
                 $query->where('operation_date', '>=', $filters['start_date']);
@@ -404,29 +398,21 @@ class FinancialReportsController extends Controller
             ->when($filters['end_date'], function ($query) use ($filters) {
                 $query->where('operation_date', '<=', $filters['end_date']);
             })
-            ->select(
-                DB::raw('YEAR(operation_date) as year'),
-                DB::raw('MONTH(operation_date) as month'),
-                DB::raw('SUM(amount) as revenue')
-            )
-            ->groupBy('year', 'month')
+            ->selectRaw('YEAR(operation_date) as year, MONTH(operation_date) as month, SUM(amount) as revenue')
+            ->groupByRaw('YEAR(operation_date), MONTH(operation_date)')
             ->orderBy('year', 'asc')
             ->orderBy('month', 'asc')
             ->get();
 
-        // Gastos de nómina mensuales
+        // Gastos de nómina mensuales usando Eloquent/Query Builder
         $payrollData = PayrollExpense::when($filters['start_date'], function ($query) use ($filters) {
             $query->where('date', '>=', $filters['start_date']);
         })
             ->when($filters['end_date'], function ($query) use ($filters) {
                 $query->where('date', '<=', $filters['end_date']);
             })
-            ->select(
-                DB::raw('YEAR(date) as year'),
-                DB::raw('MONTH(date) as month'),
-                DB::raw('SUM(amount) as payroll')
-            )
-            ->groupBy('year', 'month')
+            ->selectRaw('YEAR(date) as year, MONTH(date) as month, SUM(amount) as payroll')
+            ->groupByRaw('YEAR(date), MONTH(date)')
             ->orderBy('year', 'asc')
             ->orderBy('month', 'asc')
             ->get();
@@ -500,9 +486,6 @@ class FinancialReportsController extends Controller
 
     private function getActiveCoursesCount(array $filters): int
     {
-        // Si la columna 'status' no existe, simplemente cuenta todos los cursos
-        // o usa otra columna que sí exista como 'is_active', 'active', etc.
-
         return Course::when($filters['start_date'], function ($query) use ($filters) {
             $query->where('created_at', '>=', $filters['start_date']);
         })
