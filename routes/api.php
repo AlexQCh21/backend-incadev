@@ -15,7 +15,6 @@ use App\Http\Controllers\AcademicProcesses\GroupController;
 use App\Http\Controllers\AcademicProcesses\AcademicSettingsController;
 use App\Http\Controllers\AcademicProcesses\CourseController;
 use App\Http\Controllers\AcademicProcesses\CourseVersionController;
-use App\Http\Controllers\PaymentsController;
 use App\Http\Controllers\RecursosHumanos\EmployeeController;
 use App\Http\Controllers\RecursosHumanos\OfferController;
 use App\Http\Controllers\RecursosHumanos\ApplicantController;
