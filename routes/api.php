@@ -18,6 +18,7 @@ use App\Http\Controllers\AcademicProcesses\CourseVersionController;
 use App\Http\Controllers\RecursosHumanos\EmployeeController;
 use App\Http\Controllers\RecursosHumanos\OfferController;
 use App\Http\Controllers\RecursosHumanos\ApplicantController;
+use App\Http\Controllers\RecursosHumanos\PayrollController;
 
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -247,5 +248,16 @@ Route::prefix('rrhh')->group(function () {
         Route::get('/', 'index');
         Route::get('/{id}', 'show');
         Route::get('/{applicantId}/applications', 'getApplications');
+    });
+
+
+    // ✅ NUEVAS RUTAS DE NÓMINA
+    Route::prefix('payroll')->group(function () {
+        Route::get('/', [\App\Http\Controllers\RecursosHumanos\PayrollController::class, 'index']);
+        Route::post('/', [\App\Http\Controllers\RecursosHumanos\PayrollController::class, 'store']);
+        Route::get('/stats', [\App\Http\Controllers\RecursosHumanos\PayrollController::class, 'stats']);
+        Route::get('/employee/{employeeId}', [\App\Http\Controllers\RecursosHumanos\PayrollController::class, 'employeeHistory']);
+        Route::patch('/{id}', [\App\Http\Controllers\RecursosHumanos\PayrollController::class, 'update']);
+        Route::delete('/{id}', [\App\Http\Controllers\RecursosHumanos\PayrollController::class, 'destroy']);
     });
 });
