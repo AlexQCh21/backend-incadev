@@ -14,6 +14,18 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
          $this->app->bind(BalanceGeneralRepositoryInterface::class, BalanceGeneralRepository::class);
+        
+         // Repositories
+        $this->app->bind(EmployeeRepository::class, function ($app) {
+            return new EmployeeRepository();
+        });
+
+        // Services
+        $this->app->bind(EmployeeService::class, function ($app) {
+            return new EmployeeService(
+                $app->make(EmployeeRepository::class)
+            );
+        });
     }
 
     /**
