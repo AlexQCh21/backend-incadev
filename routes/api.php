@@ -112,6 +112,7 @@ Route::prefix('academic-processes')->group(function () {
 
 // PAYMENTS ROUTES (sin autenticación por ahora)
 Route::prefix('pagos')->group(function () {
+    Route::get('/approval', [PaymentsController::class, 'approval']);
     Route::get('/', [PaymentsController::class, 'index']);
     Route::get('/export-csv', [PaymentsController::class, 'exportCsv']);
     Route::get('/export-pdf', [PaymentsController::class, 'exportPdf']);

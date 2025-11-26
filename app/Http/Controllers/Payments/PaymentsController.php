@@ -8,21 +8,13 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Str;
+use IncadevUns\CoreDomain\Models\Enrollment;
+use IncadevUns\CoreDomain\Enums\PaymentStatus;
+use IncadevUns\CoreDomain\Enums\EnrollmentAcademicStatus;
+use IncadevUns\CoreDomain\Enums\PaymentVerificationStatus;
 
 class PaymentsController extends Controller
 {
-    // Payment Verification Status
-    private const VERIFICATION_APPROVED = 'approved';
-    private const VERIFICATION_PENDING = 'pending';
-    private const VERIFICATION_REJECTED = 'rejected';
-
-    // Payment Status
-    private const PAYMENT_PAID = 'paid';
-    private const PAYMENT_CANCELLED = 'cancelled';
-
-    // Academic Status
-    private const ACADEMIC_ACTIVE = 'active';
-    private const ACADEMIC_FAILED = 'failed';
 
     public function index(Request $request)
     {
@@ -35,13 +27,13 @@ class PaymentsController extends Controller
 
         $monthlyIncome = (float) DB::table('enrollment_payments')
             ->whereNotNull('amount')
-            ->where('status', self::VERIFICATION_APPROVED)
+            ->where('status', PaymentVerificationStatus::Approved->value)
             ->whereBetween('operation_date', [$currentMonthStart, $currentMonthEnd])
             ->sum('amount');
 
         $previousIncome = (float) DB::table('enrollment_payments')
             ->whereNotNull('amount')
-            ->where('status', self::VERIFICATION_APPROVED)
+            ->where('status', PaymentVerificationStatus::Approved->value)
             ->whereBetween('operation_date', [$previousMonthStart, $previousMonthEnd])
             ->sum('amount');
 
@@ -52,12 +44,12 @@ class PaymentsController extends Controller
         $pendingSnapshot = DB::table('enrollment_payments')
             ->leftJoin('enrollments', 'enrollment_payments.enrollment_id', '=', 'enrollments.id')
             ->leftJoin('users', 'enrollments.user_id', '=', 'users.id')
-            ->where('enrollment_payments.status', self::VERIFICATION_PENDING)
+            ->where('enrollment_payments.status', PaymentVerificationStatus::Pending->value)
             ->selectRaw('COALESCE(SUM(enrollment_payments.amount), 0) as total_amount, COUNT(DISTINCT users.id) as students_count')
             ->first();
 
         $paymentSnapshot = DB::table('enrollment_payments')
-            ->selectRaw('COUNT(*) as total, SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as approved', [self::VERIFICATION_APPROVED])
+            ->selectRaw('COUNT(*) as total, SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as approved', [PaymentVerificationStatus::Approved->value])
             ->first();
 
         $collectionRate = ($paymentSnapshot && $paymentSnapshot->total > 0)
@@ -185,6 +177,73 @@ class PaymentsController extends Controller
         return back()->with('info', "Reporte generado con {$rows->count()} transacciones (simulado)");
     }
 
+    public function approval(Request $request)
+    {
+        $search = trim((string) $request->input('search', ''));
+
+        $sort = strtolower($request->query('sort', 'date'));
+        $direction = strtolower($request->query('direction', 'desc')) === 'asc' ? 'asc' : 'desc';
+
+        $sortColumns = [
+            'id' => 'enrollment_payments.id',
+            'amount' => 'enrollment_payments.amount',
+            'date' => 'enrollment_payments.operation_date'
+        ];
+
+        if (! array_key_exists($sort, $sortColumns)) {
+            $sort = 'date';
+        }
+
+        $paymentsQuery = DB::table('enrollment_payments')
+            ->leftJoin('enrollments', 'enrollment_payments.enrollment_id', '=', 'enrollments.id')
+            ->leftJoin('users', 'enrollments.user_id', '=', 'users.id')
+            ->where('enrollment_payments.status', PaymentVerificationStatus::Pending->value)
+            ->select([
+                'enrollment_payments.id',
+                'enrollment_payments.enrollment_id',
+                'enrollment_payments.operation_number',
+                'enrollment_payments.agency_number',
+                'enrollment_payments.operation_date',
+                'enrollment_payments.amount',
+                'enrollment_payments.evidence_path',
+                'enrollment_payments.status',
+                DB::raw("TRIM(COALESCE(users.name, '')) as student_name"),
+            ]);
+
+        if ($search !== '') {
+            $searchLower = Str::lower($search);
+
+            $paymentsQuery->where(function ($query) use ($search, $searchLower) {
+                if (is_numeric($search)) {
+                    $query->orWhere('enrollment_payments.id', (int) $search);
+                }
+
+                $query->orWhereRaw('LOWER(enrollment_payments.operation_number) LIKE ?', ["%{$searchLower}%"]);
+                $query->orWhereRaw("LOWER(TRIM(COALESCE(users.name, ''))) LIKE ?", ["%{$searchLower}%"]);
+            });
+        }
+
+        $paymentsQuery->orderBy($sortColumns[$sort], $direction);
+
+        $payments = $paymentsQuery
+            ->paginate(12)
+            ->withQueryString();
+
+        if ($request->expectsJson() || $request->is('api/*')) {
+            return response()->json([
+                'payments' => $payments->items(),
+                'pagination' => [
+                    'current_page' => $payments->currentPage(),
+                    'per_page' => $payments->perPage(),
+                    'total' => $payments->total(),
+                    'last_page' => $payments->lastPage(),
+                ],
+            ]);
+        }
+
+        return view('pagos.approval', compact('payments', 'search', 'sort', 'direction'));
+    }
+
     public function exportCsv()
     {
         $records = DB::table('enrollment_payments')
@@ -211,17 +270,25 @@ class PaymentsController extends Controller
 
             fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF));
 
-            fputcsv($handle, ['ID', 'Estudiante', 'Agencia', 'Monto', 'Fecha Operación', 'Estado', 'N° Operación']);
+            fputcsv($handle, ['ID', 'Estudiante', 'N° Operación', 'Agencia', 'Monto', 'Fecha Operación', 'Estado']);
 
             foreach ($records as $row) {
+                $statusMap = [
+                    'approved' => 'Aprobado',
+                    'pending' => 'Pendiente',
+                    'rejected' => 'Rechazado',
+                ];
+                $status = strtolower($row->status ?? 'pending');
+                $statusText = $statusMap[$status] ?? ucfirst($status);
+
                 fputcsv($handle, [
                     $row->id,
                     trim($row->student_name) !== '' ? $row->student_name : 'Sin asignar',
+                    $row->operation_number ?? 'Sin número',
                     $row->agency_number ?? 'Sin agencia',
                     number_format((float) ($row->amount ?? 0), 2, ',', '.'),
                     $row->operation_date ? Carbon::parse($row->operation_date)->format('d/m/Y') : 'Sin fecha',
-                    ucfirst(strtolower($row->status ?? 'pendiente')),
-                    $row->operation_number ?? 'Sin número',
+                    $statusText,
                 ]);
             }
 
@@ -401,21 +468,21 @@ class PaymentsController extends Controller
             return response()->json(['error' => 'Pago no encontrado.'], 404);
         }
 
-        if (strtolower($payment->status) === self::VERIFICATION_APPROVED) {
+        if (strtolower($payment->status) === PaymentVerificationStatus::Approved->value) {
             return response()->json(['message' => 'Pago ya se encuentra aprobado.'], 200);
         }
 
         DB::beginTransaction();
         try {
             DB::table('enrollment_payments')->where('id', $id)->update([
-                'status' => self::VERIFICATION_APPROVED,
+                'status' => PaymentVerificationStatus::Approved->value,
                 'updated_at' => Carbon::now(),
             ]);
 
-            DB::table('enrollments')->where('id', $payment->enrollment_id)->update([
-                'payment_status' => self::PAYMENT_PAID,
-                'academic_status' => self::ACADEMIC_ACTIVE,
-                'updated_at' => Carbon::now(),
+            $enrollment = Enrollment::findOrFail($payment->enrollment_id);
+            $enrollment->update([
+                'payment_status' => PaymentStatus::Paid,
+                'academic_status' => EnrollmentAcademicStatus::Active,
             ]);
 
             DB::commit();
@@ -439,21 +506,21 @@ class PaymentsController extends Controller
             return response()->json(['error' => 'Pago no encontrado.'], 404);
         }
 
-        if (strtolower($payment->status) === self::VERIFICATION_REJECTED) {
+        if (strtolower($payment->status) === PaymentVerificationStatus::Rejected->value) {
             return response()->json(['message' => 'Pago ya se encuentra rechazado.'], 200);
         }
 
         DB::beginTransaction();
         try {
             DB::table('enrollment_payments')->where('id', $id)->update([
-                'status' => self::VERIFICATION_REJECTED,
+                'status' => PaymentVerificationStatus::Rejected->value,
                 'updated_at' => Carbon::now(),
             ]);
 
-            DB::table('enrollments')->where('id', $payment->enrollment_id)->update([
-                'payment_status' => self::PAYMENT_CANCELLED,
-                'academic_status' => self::ACADEMIC_FAILED,
-                'updated_at' => Carbon::now(),
+            $enrollment = Enrollment::findOrFail($payment->enrollment_id);
+            $enrollment->update([
+                'payment_status' => PaymentStatus::Cancelled,
+                'academic_status' => EnrollmentAcademicStatus::Failed,
             ]);
 
             DB::commit();
@@ -468,4 +535,3 @@ class PaymentsController extends Controller
         }
     }
 }
-
