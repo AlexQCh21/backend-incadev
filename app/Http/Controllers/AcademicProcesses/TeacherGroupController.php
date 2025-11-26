@@ -7,15 +7,11 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use IncadevUns\CoreDomain\Enums\GroupStatus;
 
 class TeacherGroupController extends Controller
 {
-    // Group Status
-    private const GROUP_PENDING = 'pending';
-    private const GROUP_ENROLLING = 'enrolling';
-    private const GROUP_ACTIVE = 'active';
-    private const GROUP_COMPLETED = 'completed';
-    private const GROUP_CANCELLED = 'cancelled';
+
 
     public function index(Request $request)
     {
@@ -227,7 +223,7 @@ class TeacherGroupController extends Controller
         $totalGroups = DB::table('groups')->count();
 
         $activeGroups = DB::table('groups')
-            ->where('status', self::GROUP_ACTIVE)
+            ->where('status', GroupStatus::Active->value)
             ->count();
 
         $groupsWithTeachers = DB::table('groups')

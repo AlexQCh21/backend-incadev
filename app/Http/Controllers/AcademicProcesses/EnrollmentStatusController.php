@@ -7,60 +7,26 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use IncadevUns\CoreDomain\Enums\PaymentStatus;
+use IncadevUns\CoreDomain\Enums\EnrollmentAcademicStatus;
+use IncadevUns\CoreDomain\Enums\EnrollmentResultStatus;
 
 
 class EnrollmentStatusController extends Controller
 {
-    // Payment Status
-    private const PAYMENT_PENDING = 'pending';
-    private const PAYMENT_PAID = 'paid';
-    private const PAYMENT_PARTIALLY_PAID = 'partially_paid';
-    private const PAYMENT_REFUNDED = 'refunded';
-    private const PAYMENT_CANCELLED = 'cancelled';
-    private const PAYMENT_OVERDUE = 'overdue';
-
-    // Academic Status
-    private const ACADEMIC_PENDING = 'pending';
-    private const ACADEMIC_ACTIVE = 'active';
-    private const ACADEMIC_COMPLETED = 'completed';
-    private const ACADEMIC_FAILED = 'failed';
-    private const ACADEMIC_DROPPED = 'dropped';
-
-    // Enrollment Result Status
-    private const RESULT_APPROVED = 'approved';
-    private const RESULT_FAILED = 'failed';
-    private const RESULT_PENDING = 'pending';
-
     private function getPaymentStatuses(): array
     {
-        return [
-            self::PAYMENT_PENDING,
-            self::PAYMENT_PAID,
-            self::PAYMENT_PARTIALLY_PAID,
-            self::PAYMENT_REFUNDED,
-            self::PAYMENT_CANCELLED,
-            self::PAYMENT_OVERDUE,
-        ];
+        return array_map(fn($status) => $status->value, PaymentStatus::cases());
     }
 
     private function getAcademicStatuses(): array
     {
-        return [
-            self::ACADEMIC_PENDING,
-            self::ACADEMIC_ACTIVE,
-            self::ACADEMIC_COMPLETED,
-            self::ACADEMIC_FAILED,
-            self::ACADEMIC_DROPPED,
-        ];
+        return array_map(fn($status) => $status->value, EnrollmentAcademicStatus::cases());
     }
 
     private function getResultStatuses(): array
     {
-        return [
-            self::RESULT_APPROVED,
-            self::RESULT_FAILED,
-            self::RESULT_PENDING,
-        ];
+        return array_map(fn($status) => $status->value, EnrollmentResultStatus::cases());
     }
     public function index(Request $request)
     {
@@ -292,7 +258,7 @@ class EnrollmentStatusController extends Controller
                     'enrollment_id' => $id,
                     'final_grade' => $validated['final_grade'] ?? null,
                     'attendance_percentage' => $validated['attendance_percentage'] ?? null,
-                    'status' => $validated['status'] ?? self::RESULT_PENDING,
+                    'status' => $validated['status'] ?? EnrollmentResultStatus::Pending->value,
                     'created_at' => Carbon::now(),
                     'updated_at' => Carbon::now(),
                 ]);
@@ -323,15 +289,15 @@ class EnrollmentStatusController extends Controller
         $totalEnrollments = DB::table('enrollments')->count();
 
         $activeEnrollments = DB::table('enrollments')
-            ->where('academic_status', self::ACADEMIC_ACTIVE)
+            ->where('academic_status', EnrollmentAcademicStatus::Active->value)
             ->count();
 
         $completedEnrollments = DB::table('enrollments')
-            ->where('academic_status', self::ACADEMIC_COMPLETED)
+            ->where('academic_status', EnrollmentAcademicStatus::Completed->value)
             ->count();
 
         $pendingPayment = DB::table('enrollments')
-            ->where('payment_status', self::PAYMENT_PENDING)
+            ->where('payment_status', PaymentStatus::Pending->value)
             ->count();
 
         return [
