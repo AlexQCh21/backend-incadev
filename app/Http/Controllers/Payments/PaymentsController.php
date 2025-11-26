@@ -118,6 +118,11 @@ class PaymentsController extends Controller
             });
         }
 
+        $statusFilter = $request->query('status');
+        if ($statusFilter && in_array(strtolower($statusFilter), ['pending', 'approved', 'rejected'])) {
+            $paymentsQuery->where('enrollment_payments.status', strtolower($statusFilter));
+        }
+
         $paymentsQuery->orderBy($sortColumns[$sort], $direction);
 
         $payments = $paymentsQuery
