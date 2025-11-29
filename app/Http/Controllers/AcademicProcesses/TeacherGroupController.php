@@ -179,22 +179,6 @@ class TeacherGroupController extends Controller
             'user_id' => 'required|integer|exists:users,id',
         ]);
 
-        $group = DB::table('groups')
-            ->where('id', $validated['group_id'])
-            ->first();
-
-        if (!$group) {
-            return response()->json([
-                'error' => 'El grupo no existe.'
-            ], 404);
-        }
-
-        if (in_array(strtolower($group->status), [GroupStatus::Cancelled->value, GroupStatus::Completed->value])) {
-            return response()->json([
-                'error' => 'No se pueden remover docentes de grupos cancelados o completados.'
-            ], 400);
-        }
-
         $exists = DB::table('group_teachers')
             ->where('group_id', $validated['group_id'])
             ->where('user_id', $validated['user_id'])

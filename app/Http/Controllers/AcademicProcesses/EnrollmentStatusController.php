@@ -7,7 +7,6 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use IncadevUns\CoreDomain\Models\Enrollment;
 use IncadevUns\CoreDomain\Enums\PaymentStatus;
 use IncadevUns\CoreDomain\Enums\EnrollmentAcademicStatus;
 use IncadevUns\CoreDomain\Enums\EnrollmentResultStatus;
@@ -17,17 +16,17 @@ class EnrollmentStatusController extends Controller
 {
     private function getPaymentStatuses(): array
     {
-        return PaymentStatus::values();
+        return array_map(fn($status) => $status->value, PaymentStatus::cases());
     }
 
     private function getAcademicStatuses(): array
     {
-        return EnrollmentAcademicStatus::values();
+        return array_map(fn($status) => $status->value, EnrollmentAcademicStatus::cases());
     }
 
     private function getResultStatuses(): array
     {
-        return EnrollmentResultStatus::values();
+        return array_map(fn($status) => $status->value, EnrollmentResultStatus::cases());
     }
     public function index(Request $request)
     {
