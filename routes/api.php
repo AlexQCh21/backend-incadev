@@ -15,6 +15,11 @@ use App\Http\Controllers\AcademicProcesses\GroupController;
 use App\Http\Controllers\AcademicProcesses\AcademicSettingsController;
 use App\Http\Controllers\AcademicProcesses\CourseController;
 use App\Http\Controllers\AcademicProcesses\CourseVersionController;
+use App\Http\Controllers\RecursosHumanos\EmployeeController;
+use App\Http\Controllers\RecursosHumanos\OfferController;
+use App\Http\Controllers\RecursosHumanos\ApplicantController;
+use App\Http\Controllers\RecursosHumanos\PayrollController;
+
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/test', function (Request $request) {
@@ -107,6 +112,7 @@ Route::prefix('academic-processes')->group(function () {
 
 // PAYMENTS ROUTES (sin autenticación por ahora)
 Route::prefix('pagos')->group(function () {
+    Route::get('/approval', [PaymentsController::class, 'approval']);
     Route::get('/', [PaymentsController::class, 'index']);
     Route::get('/export-csv', [PaymentsController::class, 'exportCsv']);
     Route::get('/export-pdf', [PaymentsController::class, 'exportPdf']);
@@ -139,6 +145,9 @@ Route::prefix('gestion-documentaria')->group(function () {
     Route::get('/documentos/{id}', [\App\Http\Controllers\DocumentManagement\DocumentController::class, 'show']);
     Route::put('/documentos/{id}', [\App\Http\Controllers\DocumentManagement\DocumentController::class, 'update']);
     Route::delete('/documentos/{id}', [\App\Http\Controllers\DocumentManagement\DocumentController::class, 'destroy']);
+
+    // Rutas para Institute Directors
+    Route::apiResource('institute-directors', \App\Http\Controllers\DocumentManagement\InstituteDirectorController::class);
 });
 
 Route::prefix('financial-reports')->group(function () {
@@ -190,5 +199,66 @@ Route::prefix('gestion-academica')->group(function () {
         Route::patch('/{id}/payment-status', [EnrollmentController::class, 'updatePaymentStatus']);
         Route::patch('/{id}/academic-status', [EnrollmentController::class, 'updateAcademicStatus']);
         Route::delete('/{id}', [EnrollmentController::class, 'destroy']);
+    });
+});
+
+
+
+// Rutas de Recursos Humanos
+Route::prefix('rrhh')->group(function () {
+    
+    // Empleados
+    Route::get('/employees', [EmployeeController::class, 'index']);
+    Route::get('/employees/{id}', [EmployeeController::class, 'show']);
+    Route::patch('/employees/{id}', [EmployeeController::class, 'update']);
+    
+    // Contratos
+    Route::post('/employees/{id}/contracts', [EmployeeController::class, 'createContract']);
+    Route::patch('/employees/{id}/deactivate', [EmployeeController::class, 'deactivate']);
+    Route::post('/employees/{id}/activate', [EmployeeController::class, 'activate']);
+    Route::patch('/contracts/{contractId}', [EmployeeController::class, 'updateContract']);
+
+    // Ofertas
+    Route::prefix('offers')
+    ->controller(OfferController::class)
+    ->group(function () {
+        Route::get('/', 'index');
+        Route::post('/', 'store');
+        Route::get('/stats', 'stats');
+        Route::get('/{id}', 'show');
+        Route::put('/{id}', 'update');
+        Route::delete('/{id}', 'destroy');
+        Route::post('/{id}/close', 'close');
+        
+        // Aplicaciones
+        Route::get('/{offerId}/applications', 'getApplications');
+        Route::post('/applications', 'storeApplication');
+    });
+
+    // Postulantes - ORDEN CORRECTO
+    Route::prefix('applicants')
+    ->controller(ApplicantController::class)
+    ->group(function () {
+        // ✅ RUTAS ESPECÍFICAS PRIMERO
+        Route::get('/roles', 'getAvailableRoles'); // ✅ PRIMERO - antes de /{id}
+        Route::get('/stats', 'stats');
+        Route::get('/offers/{offerId}/applications', 'getApplicationsByOffer');
+        Route::put('/applications/{applicationId}/status', 'updateApplicationStatus');
+        
+        // ✅ RUTAS CON PARÁMETROS DESPUÉS
+        Route::get('/', 'index');
+        Route::get('/{id}', 'show');
+        Route::get('/{applicantId}/applications', 'getApplications');
+    });
+
+
+    // ✅ NUEVAS RUTAS DE NÓMINA
+    Route::prefix('payroll')->group(function () {
+        Route::get('/', [\App\Http\Controllers\RecursosHumanos\PayrollController::class, 'index']);
+        Route::post('/', [\App\Http\Controllers\RecursosHumanos\PayrollController::class, 'store']);
+        Route::get('/stats', [\App\Http\Controllers\RecursosHumanos\PayrollController::class, 'stats']);
+        Route::get('/employee/{employeeId}', [\App\Http\Controllers\RecursosHumanos\PayrollController::class, 'employeeHistory']);
+        Route::patch('/{id}', [\App\Http\Controllers\RecursosHumanos\PayrollController::class, 'update']);
+        Route::delete('/{id}', [\App\Http\Controllers\RecursosHumanos\PayrollController::class, 'destroy']);
     });
 });

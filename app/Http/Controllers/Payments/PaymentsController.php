@@ -110,6 +110,11 @@ class PaymentsController extends Controller
             });
         }
 
+        $statusFilter = $request->query('status');
+        if ($statusFilter && in_array(strtolower($statusFilter), ['pending', 'approved', 'rejected'])) {
+            $paymentsQuery->where('enrollment_payments.status', strtolower($statusFilter));
+        }
+
         $paymentsQuery->orderBy($sortColumns[$sort], $direction);
 
         $payments = $paymentsQuery
@@ -170,6 +175,73 @@ class PaymentsController extends Controller
             ->get();
 
         return back()->with('info', "Reporte generado con {$rows->count()} transacciones (simulado)");
+    }
+
+    public function approval(Request $request)
+    {
+        $search = trim((string) $request->input('search', ''));
+
+        $sort = strtolower($request->query('sort', 'date'));
+        $direction = strtolower($request->query('direction', 'desc')) === 'asc' ? 'asc' : 'desc';
+
+        $sortColumns = [
+            'id' => 'enrollment_payments.id',
+            'amount' => 'enrollment_payments.amount',
+            'date' => 'enrollment_payments.operation_date'
+        ];
+
+        if (! array_key_exists($sort, $sortColumns)) {
+            $sort = 'date';
+        }
+
+        $paymentsQuery = DB::table('enrollment_payments')
+            ->leftJoin('enrollments', 'enrollment_payments.enrollment_id', '=', 'enrollments.id')
+            ->leftJoin('users', 'enrollments.user_id', '=', 'users.id')
+            ->where('enrollment_payments.status', PaymentVerificationStatus::Pending->value)
+            ->select([
+                'enrollment_payments.id',
+                'enrollment_payments.enrollment_id',
+                'enrollment_payments.operation_number',
+                'enrollment_payments.agency_number',
+                'enrollment_payments.operation_date',
+                'enrollment_payments.amount',
+                'enrollment_payments.evidence_path',
+                'enrollment_payments.status',
+                DB::raw("TRIM(COALESCE(users.name, '')) as student_name"),
+            ]);
+
+        if ($search !== '') {
+            $searchLower = Str::lower($search);
+
+            $paymentsQuery->where(function ($query) use ($search, $searchLower) {
+                if (is_numeric($search)) {
+                    $query->orWhere('enrollment_payments.id', (int) $search);
+                }
+
+                $query->orWhereRaw('LOWER(enrollment_payments.operation_number) LIKE ?', ["%{$searchLower}%"]);
+                $query->orWhereRaw("LOWER(TRIM(COALESCE(users.name, ''))) LIKE ?", ["%{$searchLower}%"]);
+            });
+        }
+
+        $paymentsQuery->orderBy($sortColumns[$sort], $direction);
+
+        $payments = $paymentsQuery
+            ->paginate(12)
+            ->withQueryString();
+
+        if ($request->expectsJson() || $request->is('api/*')) {
+            return response()->json([
+                'payments' => $payments->items(),
+                'pagination' => [
+                    'current_page' => $payments->currentPage(),
+                    'per_page' => $payments->perPage(),
+                    'total' => $payments->total(),
+                    'last_page' => $payments->lastPage(),
+                ],
+            ]);
+        }
+
+        return view('pagos.approval', compact('payments', 'search', 'sort', 'direction'));
     }
 
     public function exportCsv()
@@ -463,4 +535,3 @@ class PaymentsController extends Controller
         }
     }
 }
-
