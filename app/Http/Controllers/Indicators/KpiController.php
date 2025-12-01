@@ -12,6 +12,19 @@ use Carbon\Carbon;
 
 class KpiController extends Controller
 {
+    // ⚠️ TEMPORAL PARA TESTING - Simular que estamos en Noviembre 2025
+    private function getCurrentDate()
+    {
+        // Cambia esto a true para testing, false para producción
+        $testing = true;
+
+        if ($testing) {
+            return Carbon::create(2025, 11, 15); // 15 de Noviembre 2025
+        }
+
+        return Carbon::now();
+    }
+
     /**
      * Obtener todos los KPIs con sus valores calculados
      */
@@ -116,23 +129,23 @@ class KpiController extends Controller
 
     /**
      * KPI 1: Satisfacción Estudiantil
-     * Calcula el promedio de las respuestas de la encuesta de satisfacción estudiantil
      */
     private function updateSatisfaccionEstudiantil(KpiGoal $kpi): void
     {
-        // ID de la encuesta de satisfacción estudiantil (ajusta según tu BD)
         $surveyId = DB::table('surveys')
             ->where('title', 'like', '%Satisfacción Estudiantil%')
             ->value('id');
 
         if (!$surveyId) {
+            Log::warning('No se encontró encuesta de Satisfacción Estudiantil');
             return;
         }
 
-        // Calcular promedio del mes actual
-        $currentMonth = Carbon::now()->month;
-        $currentYear = Carbon::now()->year;
+        $currentDate = $this->getCurrentDate();
+        $currentMonth = $currentDate->month;
+        $currentYear = $currentDate->year;
 
+        // Mes actual
         $currentAvg = DB::table('survey_responses')
             ->join('response_details', 'survey_responses.id', '=', 'response_details.survey_response_id')
             ->where('survey_responses.survey_id', $surveyId)
@@ -140,23 +153,31 @@ class KpiController extends Controller
             ->whereYear('survey_responses.date', $currentYear)
             ->avg('response_details.score');
 
-        // Calcular promedio del mes anterior
-        $previousMonth = Carbon::now()->subMonth();
+        // Mes anterior
+        $previousDate = $currentDate->copy()->subMonth();
         $previousAvg = DB::table('survey_responses')
             ->join('response_details', 'survey_responses.id', '=', 'response_details.survey_response_id')
             ->where('survey_responses.survey_id', $surveyId)
-            ->whereMonth('survey_responses.date', $previousMonth->month)
-            ->whereYear('survey_responses.date', $previousMonth->year)
+            ->whereMonth('survey_responses.date', $previousDate->month)
+            ->whereYear('survey_responses.date', $previousDate->year)
             ->avg('response_details.score');
 
-        // Convertir de escala 1-5 a porcentaje (0-100%)
+        // Convertir de escala 1-5 a porcentaje
         $currentValue = $currentAvg ? ($currentAvg / 5) * 100 : 0;
         $previousValue = $previousAvg ? ($previousAvg / 5) * 100 : 0;
 
         // Calcular tendencia
         $trend = $previousValue > 0 ? (($currentValue - $previousValue) / $previousValue) * 100 : 0;
 
-        // Actualizar KPI
+        Log::info('KPI Satisfacción Estudiantil', [
+            'survey_id' => $surveyId,
+            'current_avg' => $currentAvg,
+            'previous_avg' => $previousAvg,
+            'current_value' => $currentValue,
+            'previous_value' => $previousValue,
+            'trend' => $trend,
+        ]);
+
         $kpi->previous_value = round($previousValue, 2);
         $kpi->current_value = round($currentValue, 2);
         $kpi->trend = round($trend, 2);
@@ -166,70 +187,52 @@ class KpiController extends Controller
 
     /**
      * KPI 2: Ejecución Presupuestal
-     * Calcula: (Ingresos / (Ingresos + Gastos)) * 100
      */
     private function updateEjecucionPresupuestal(KpiGoal $kpi): void
     {
-        $currentMonth = Carbon::now()->month;
-        $currentYear = Carbon::now()->year;
+        $currentDate = $this->getCurrentDate();
+        $currentMonth = $currentDate->month;
+        $currentYear = $currentDate->year;
 
-        // Ingresos del mes actual (enrollment_payments aprobados)
         $currentIngresos = DB::table('enrollment_payments')
             ->where('status', 'approved')
             ->whereYear('operation_date', $currentYear)
             ->whereMonth('operation_date', $currentMonth)
             ->sum('amount');
 
-        // Gastos del mes actual (payroll_expenses)
         $currentGastos = DB::table('payroll_expenses')
             ->whereYear('date', $currentYear)
             ->whereMonth('date', $currentMonth)
             ->sum('amount');
 
-        // Calcular porcentaje de ejecución presupuestal
         $currentTotal = $currentIngresos + $currentGastos;
         $currentValue = $currentTotal > 0 ? ($currentIngresos / $currentTotal) * 100 : 0;
 
-        // Mes anterior (acumulado hasta el mes anterior)
-        $previousMonth = Carbon::now()->subMonth();
+        // Mes anterior
+        $previousDate = $currentDate->copy()->subMonth();
         $previousIngresos = DB::table('enrollment_payments')
             ->where('status', 'approved')
-            ->whereYear('operation_date', $previousMonth->year)
-            ->where(function($query) use ($previousMonth) {
-                $query->whereMonth('operation_date', '<', $previousMonth->month)
-                    ->orWhere(function($q) use ($previousMonth) {
-                        $q->whereMonth('operation_date', '=', $previousMonth->month)
-                            ->whereYear('operation_date', '=', $previousMonth->year);
-                    });
-            })
+            ->whereYear('operation_date', $previousDate->year)
+            ->whereMonth('operation_date', $previousDate->month)
             ->sum('amount');
 
         $previousGastos = DB::table('payroll_expenses')
-            ->whereYear('date', $previousMonth->year)
-            ->where(function($query) use ($previousMonth) {
-                $query->whereMonth('date', '<', $previousMonth->month)
-                    ->orWhere(function($q) use ($previousMonth) {
-                        $q->whereMonth('date', '=', $previousMonth->month)
-                            ->whereYear('date', '=', $previousMonth->year);
-                    });
-            })
+            ->whereYear('date', $previousDate->year)
+            ->whereMonth('date', $previousDate->month)
             ->sum('amount');
 
         $previousTotal = $previousIngresos + $previousGastos;
         $previousValue = $previousTotal > 0 ? ($previousIngresos / $previousTotal) * 100 : 0;
 
-        // Calcular tendencia
         $trend = $previousValue > 0 ? (($currentValue - $previousValue) / $previousValue) * 100 : 0;
 
-        // Log para debugging
-        Log::info('Ejecución Presupuestal', [
+        Log::info('KPI Ejecución Presupuestal', [
             'ingresos' => $currentIngresos,
             'gastos' => $currentGastos,
             'total' => $currentTotal,
             'porcentaje' => $currentValue,
         ]);
 
-        // Actualizar KPI
         $kpi->previous_value = round($previousValue, 2);
         $kpi->current_value = round($currentValue, 2);
         $kpi->trend = round($trend, 2);
@@ -239,22 +242,21 @@ class KpiController extends Controller
 
     /**
      * KPI 3: Satisfacción con Instructores
-     * Calcula el promedio de las respuestas de la encuesta de seguimiento del docente
      */
     private function updateSatisfaccionInstructores(KpiGoal $kpi): void
     {
-        // ID de la encuesta de seguimiento del docente
         $surveyId = DB::table('surveys')
             ->where('title', 'like', '%Seguimiento del Docente%')
             ->value('id');
 
         if (!$surveyId) {
+            Log::warning('No se encontró encuesta de Seguimiento del Docente');
             return;
         }
 
-        // Calcular promedio del mes actual
-        $currentMonth = Carbon::now()->month;
-        $currentYear = Carbon::now()->year;
+        $currentDate = $this->getCurrentDate();
+        $currentMonth = $currentDate->month;
+        $currentYear = $currentDate->year;
 
         $currentAvg = DB::table('survey_responses')
             ->join('response_details', 'survey_responses.id', '=', 'response_details.survey_response_id')
@@ -263,23 +265,28 @@ class KpiController extends Controller
             ->whereYear('survey_responses.date', $currentYear)
             ->avg('response_details.score');
 
-        // Calcular promedio del mes anterior
-        $previousMonth = Carbon::now()->subMonth();
+        $previousDate = $currentDate->copy()->subMonth();
         $previousAvg = DB::table('survey_responses')
             ->join('response_details', 'survey_responses.id', '=', 'response_details.survey_response_id')
             ->where('survey_responses.survey_id', $surveyId)
-            ->whereMonth('survey_responses.date', $previousMonth->month)
-            ->whereYear('survey_responses.date', $previousMonth->year)
+            ->whereMonth('survey_responses.date', $previousDate->month)
+            ->whereYear('survey_responses.date', $previousDate->year)
             ->avg('response_details.score');
 
-        // Convertir de escala 1-5 a porcentaje (0-100%)
         $currentValue = $currentAvg ? ($currentAvg / 5) * 100 : 0;
         $previousValue = $previousAvg ? ($previousAvg / 5) * 100 : 0;
 
-        // Calcular tendencia
         $trend = $previousValue > 0 ? (($currentValue - $previousValue) / $previousValue) * 100 : 0;
 
-        // Actualizar KPI
+        Log::info('KPI Satisfacción Instructores', [
+            'survey_id' => $surveyId,
+            'current_avg' => $currentAvg,
+            'previous_avg' => $previousAvg,
+            'current_value' => $currentValue,
+            'previous_value' => $previousValue,
+            'trend' => $trend,
+        ]);
+
         $kpi->previous_value = round($previousValue, 2);
         $kpi->current_value = round($currentValue, 2);
         $kpi->trend = round($trend, 2);
@@ -289,24 +296,22 @@ class KpiController extends Controller
 
     /**
      * KPI 4: Tasa de Empleabilidad de Graduados
-     * Calcula el porcentaje de graduados empleados basado en la encuesta de seguimiento
      */
     private function updateEmpleabilidadGraduados(KpiGoal $kpi): void
     {
-        // ID de la encuesta de seguimiento del egresado
         $surveyId = DB::table('surveys')
             ->where('title', 'like', '%Seguimiento del Egresado%')
             ->value('id');
 
         if (!$surveyId) {
+            Log::warning('No se encontró encuesta de Seguimiento del Egresado');
             return;
         }
 
-        // Mes actual
-        $currentMonth = Carbon::now()->month;
-        $currentYear = Carbon::now()->year;
+        $currentDate = $this->getCurrentDate();
+        $currentMonth = $currentDate->month;
+        $currentYear = $currentDate->year;
 
-        // Contar respuestas con promedio >= 4 (considerados "empleados exitosamente")
         $currentResponses = DB::table('survey_responses')
             ->select('survey_responses.id')
             ->join('response_details', 'survey_responses.id', '=', 'response_details.survey_response_id')
@@ -327,32 +332,38 @@ class KpiController extends Controller
             ? ($currentResponses / $totalCurrentResponses) * 100
             : 0;
 
-        // Mes anterior
-        $previousMonth = Carbon::now()->subMonth();
+        $previousDate = $currentDate->copy()->subMonth();
         $previousResponses = DB::table('survey_responses')
             ->select('survey_responses.id')
             ->join('response_details', 'survey_responses.id', '=', 'response_details.survey_response_id')
             ->where('survey_responses.survey_id', $surveyId)
-            ->whereMonth('survey_responses.date', $previousMonth->month)
-            ->whereYear('survey_responses.date', $previousMonth->year)
+            ->whereMonth('survey_responses.date', $previousDate->month)
+            ->whereYear('survey_responses.date', $previousDate->year)
             ->groupBy('survey_responses.id')
             ->havingRaw('AVG(response_details.score) >= 4')
             ->count();
 
         $totalPreviousResponses = DB::table('survey_responses')
             ->where('survey_id', $surveyId)
-            ->whereMonth('date', $previousMonth->month)
-            ->whereYear('date', $previousMonth->year)
+            ->whereMonth('date', $previousDate->month)
+            ->whereYear('date', $previousDate->year)
             ->count();
 
         $previousValue = $totalPreviousResponses > 0
             ? ($previousResponses / $totalPreviousResponses) * 100
             : 0;
 
-        // Calcular tendencia
         $trend = $previousValue > 0 ? (($currentValue - $previousValue) / $previousValue) * 100 : 0;
 
-        // Actualizar KPI
+        Log::info('KPI Empleabilidad', [
+            'survey_id' => $surveyId,
+            'current_responses' => $currentResponses,
+            'total_current' => $totalCurrentResponses,
+            'current_value' => $currentValue,
+            'previous_value' => $previousValue,
+            'trend' => $trend,
+        ]);
+
         $kpi->previous_value = round($previousValue, 2);
         $kpi->current_value = round($currentValue, 2);
         $kpi->trend = round($trend, 2);
@@ -361,7 +372,7 @@ class KpiController extends Controller
     }
 
     /**
-     * Calcular el estado del KPI basado en el valor actual y la meta
+     * Calcular el estado del KPI
      */
     private function calculateStatus(float $currentValue, float $goalValue): string
     {
@@ -375,8 +386,6 @@ class KpiController extends Controller
             return 'Requiere atención';
         }
     }
-
-    // En KpiController.php
 
     /**
      * Obtener datos para exportación PDF

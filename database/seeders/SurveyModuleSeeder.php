@@ -8,12 +8,12 @@ use IncadevUns\CoreDomain\Models\SurveyQuestion;
 use IncadevUns\CoreDomain\Models\SurveyResponse;
 use IncadevUns\CoreDomain\Models\ResponseDetail;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class SurveyModuleSeeder extends Seeder
 {
     public function run(): void
     {
-
         /** ======================================================
          * 1️⃣ ENCUESTA: SATISFACCIÓN ESTUDIANTIL
          ====================================================== */
@@ -87,33 +87,138 @@ class SurveyModuleSeeder extends Seeder
         }
 
         /** ======================================================
-         * Agregar respuestas de ejemplo (survey_responses + response_details)
+         * 📊 GENERAR RESPUESTAS DE EJEMPLO - NOVIEMBRE 2025
          ====================================================== */
-        $users = [2, 3, 4]; // usuarios de ejemplo, sin tocar user_id = 1
 
-        $allSurveys = [$survey1, $survey2, $survey3];
+        // Definir usuarios de ejemplo (ajusta según tu tabla de usuarios)
+        $users = range(2, 36); // 35 usuarios de ejemplo (del 2 al 36, sin contar el admin)
 
-        foreach ($allSurveys as $survey) {
+        $allSurveys = [
+            ['survey' => $survey1, 'name' => 'Satisfacción Estudiantil'],
+            ['survey' => $survey2, 'name' => 'Seguimiento Docente'],
+            ['survey' => $survey3, 'name' => 'Seguimiento Egresado']
+        ];
+
+        foreach ($allSurveys as $surveyData) {
+            $survey = $surveyData['survey'];
+            $surveyName = $surveyData['name'];
+
+            echo "Generando respuestas para: {$surveyName}...\n";
+
             $surveyQuestions = SurveyQuestion::where('survey_id', $survey->id)->get();
+
+            // Generar respuestas SOLO de noviembre 2025
             foreach ($users as $userId) {
+                // Fecha aleatoria entre el 1 y 30 de noviembre 2025
+                $dayOfMonth = rand(1, 30);
+                $responseDate = Carbon::create(2025, 11, $dayOfMonth);
+
                 $response = SurveyResponse::create([
                     'survey_id'     => $survey->id,
                     'user_id'       => $userId,
-                    'rateable_type' => 'general', // puede ajustarse a 'course' si quieres
-                    'rateable_id'   => 0,
-                    'date'          => now()->format('Y-m-d'),
+                    'rateable_type' => 'course',
+                    'rateable_id'   => rand(1, 10), // IDs de cursos de ejemplo
+                    'date'          => $responseDate->format('Y-m-d'),
+                ]);
+
+                // Generar respuestas con distribución realista
+                foreach ($surveyQuestions as $question) {
+                    ResponseDetail::create([
+                        'survey_response_id' => $response->id,
+                        'survey_question_id' => $question->id,
+                        'score'              => $this->getRealisticScore(),
+                    ]);
+                }
+            }
+
+            echo "✔ {$surveyName}: " . count($users) . " respuestas generadas (Noviembre 2025).\n";
+        }
+
+        // GENERAR TAMBIÉN DATOS DEL MES ANTERIOR (OCTUBRE 2025) PARA COMPARACIÓN
+        echo "\nGenerando datos de comparación (Octubre 2025)...\n";
+
+        foreach ($allSurveys as $surveyData) {
+            $survey = $surveyData['survey'];
+            $surveyName = $surveyData['name'];
+
+            $surveyQuestions = SurveyQuestion::where('survey_id', $survey->id)->get();
+
+            // Generar respuestas de OCTUBRE 2025 (para calcular tendencias)
+            foreach (range(2, 25) as $userId) { // 24 usuarios en octubre (menos que en noviembre)
+                $dayOfMonth = rand(1, 31);
+                $responseDate = Carbon::create(2025, 10, $dayOfMonth);
+
+                $response = SurveyResponse::create([
+                    'survey_id'     => $survey->id,
+                    'user_id'       => $userId,
+                    'rateable_type' => 'course',
+                    'rateable_id'   => rand(1, 10),
+                    'date'          => $responseDate->format('Y-m-d'),
                 ]);
 
                 foreach ($surveyQuestions as $question) {
                     ResponseDetail::create([
                         'survey_response_id' => $response->id,
                         'survey_question_id' => $question->id,
-                        'score'             => rand(3, 5), // ejemplo de puntaje 3-5
+                        'score'              => $this->getRealisticScore(true), // Ligeramente peor para ver tendencia positiva
                     ]);
                 }
             }
+
+            echo "✔ {$surveyName}: 24 respuestas de Octubre 2025 generadas.\n";
         }
 
-        echo "✔ Encuestas, preguntas y respuestas de ejemplo sembradas correctamente.\n";
+        echo "\n✅ RESUMEN:\n";
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+        echo "📋 3 Encuestas creadas\n";
+        echo "❓ 5 Preguntas por encuesta (15 total)\n";
+        echo "📅 NOVIEMBRE 2025: 35 usuarios × 3 encuestas = 105 respuestas\n";
+        echo "📅 OCTUBRE 2025: 24 usuarios × 3 encuestas = 72 respuestas (para comparación)\n";
+        echo "📊 TOTAL: 177 respuestas generadas\n";
+        echo "💾 885 detalles de respuesta guardados\n";
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+    }
+
+    /**
+     * Ya no se necesita esta función
+     */
+    // Función getRandomDate() eliminada
+
+    /**
+     * Genera puntajes con distribución realista
+     * - 50% excelente (5)
+     * - 35% bueno (4)
+     * - 12% regular (3)
+     * - 3% bajo (1-2)
+     *
+     * @param bool $slightlyWorse Para octubre, hacer las respuestas un poco peores
+     */
+    private function getRealisticScore(bool $slightlyWorse = false): int
+    {
+        $rand = rand(1, 100);
+
+        // Si es octubre (mes anterior), reducir un poco la calidad para ver mejora en noviembre
+        if ($slightlyWorse) {
+            if ($rand <= 40) { // 40% en vez de 50%
+                return 5; // Excelente
+            } elseif ($rand <= 75) { // 35%
+                return 4; // Bueno
+            } elseif ($rand <= 92) { // 17% en vez de 12%
+                return 3; // Regular
+            } else {
+                return rand(1, 2); // 8% en vez de 3%
+            }
+        }
+
+        // Distribución normal para noviembre
+        if ($rand <= 50) {
+            return 5; // Excelente
+        } elseif ($rand <= 85) {
+            return 4; // Bueno
+        } elseif ($rand <= 97) {
+            return 3; // Regular
+        } else {
+            return rand(1, 2); // Bajo
+        }
     }
 }
