@@ -114,38 +114,41 @@ class DocumentController extends Controller
     {
         Log::info('📥 Iniciando subida de documento', [
             'request_data' => $request->all(),
-            'has_file' => $request->hasFile('file'),
-            'file_info' => $request->file('file') ? [
-                'original_name' => $request->file('file')->getClientOriginalName(),
-                'size' => $request->file('file')->getSize(),
-                'mime' => $request->file('file')->getMimeType(),
-            ] : null
         ]);
 
         try {
-            $validated = $request->validate([
+            // Validar según si viene file o drive_url
+            $rules = [
                 'name' => 'required|string|max:255|unique:administrative_documents,name',
                 'type' => 'required|string|in:Académico,Administrativo,Legal',
-                'file' => 'required|file|mimes:pdf|max:10240', // Solo PDF, 10MB max
-            ]);
+            ];
+
+            // Si viene drive_url, validar URL; si viene file, validar archivo
+            if ($request->has('drive_url')) {
+                $rules['drive_url'] = 'required|url';
+            } else {
+                $rules['file'] = 'required|file|mimes:pdf|max:10240';
+            }
+
+            $validated = $request->validate($rules);
 
             Log::info('✅ Validación exitosa', ['validated' => $validated]);
 
-            // Subir archivo
-            $file = $request->file('file');
-            $path = $file->store('documents', 'public');
+            // Determinar el path según el tipo de subida
+            if ($request->has('drive_url')) {
+                // Subida a Google Drive
+                $path = $validated['drive_url']; // ⬅️ Guardar la URL completa en path
+            } else {
+                // Subida tradicional al servidor
+                $file = $request->file('file');
+                $path = $file->store('documents', 'public');
+            }
 
-            Log::info('📁 Archivo guardado', [
-                'path' => $path,
-                'full_path' => Storage::disk('public')->path($path),
-                'exists' => Storage::disk('public')->exists($path),
-            ]);
-
-            // Crear documento con versión inicial 1.0
+            // Crear documento
             $document = AdministrativeDocument::create([
                 'name' => $validated['name'],
                 'type' => $validated['type'],
-                'path' => $path,
+                'path' => $path, // ⬅️ Puede ser URL de Drive o path local
                 'version' => 1.0,
             ]);
 
@@ -163,7 +166,6 @@ class DocumentController extends Controller
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::error('❌ Error de validación', [
                 'errors' => $e->errors(),
-                'messages' => $e->getMessage()
             ]);
 
             return response()->json([
@@ -175,8 +177,6 @@ class DocumentController extends Controller
             Log::error('❌ Error al subir documento', [
                 'error' => $e->getMessage(),
                 'line' => $e->getLine(),
-                'file' => $e->getFile(),
-                'trace' => $e->getTraceAsString()
             ]);
 
             return response()->json([
@@ -209,26 +209,37 @@ class DocumentController extends Controller
     {
         $document = AdministrativeDocument::findOrFail($id);
 
-        $validated = $request->validate([
+        $rules = [
             'name' => 'sometimes|string|max:255|unique:administrative_documents,name,' . $id,
             'type' => 'sometimes|string|in:Académico,Administrativo,Legal',
-            'file' => 'sometimes|file|mimes:pdf|max:10240', // Solo PDF
-        ]);
+        ];
+
+        // Validar según lo que viene
+        if ($request->has('drive_url')) {
+            $rules['drive_url'] = 'sometimes|url';
+        } else {
+            $rules['file'] = 'sometimes|file|mimes:pdf|max:10240';
+        }
+
+        $validated = $request->validate($rules);
 
         try {
-            // Si se sube un nuevo archivo, eliminar el anterior y subir el nuevo
-            if ($request->hasFile('file')) {
-                // Eliminar archivo anterior
-                if (Storage::disk('public')->exists($document->path)) {
+            // Si se sube nuevo archivo o URL
+            if ($request->has('drive_url')) {
+                // Nueva versión desde Drive
+                $validated['path'] = $request->drive_url;
+                $validated['version'] = $document->version + 0.5;
+
+            } elseif ($request->hasFile('file')) {
+                // Nueva versión local - Eliminar archivo anterior si no es URL
+                if (!filter_var($document->path, FILTER_VALIDATE_URL) &&
+                    Storage::disk('public')->exists($document->path)) {
                     Storage::disk('public')->delete($document->path);
                 }
 
-                // Subir nuevo archivo
                 $file = $request->file('file');
                 $path = $file->store('documents', 'public');
                 $validated['path'] = $path;
-
-                // Incrementar versión en 0.5
                 $validated['version'] = $document->version + 0.5;
             }
 
@@ -241,7 +252,10 @@ class DocumentController extends Controller
                 'data' => $document
             ]);
         } catch (\Exception $e) {
-            Log::error('Error al actualizar documento', ['document_id' => $id, 'error' => $e->getMessage()]);
+            Log::error('Error al actualizar documento', [
+                'document_id' => $id,
+                'error' => $e->getMessage()
+            ]);
             return response()->json(['error' => 'Error al actualizar el documento'], 500);
         }
     }
@@ -272,28 +286,28 @@ class DocumentController extends Controller
     }
 
     /**
-     * Download document
-     */
-    /**
- * Download document - Versión mejorada con debugging
- */
-    /**
- * Download document - Versión ultra-robusta
+ * Download document
  */
     public function download(string $id)
     {
         try {
             $document = AdministrativeDocument::findOrFail($id);
 
-            // Intentar múltiples estrategias para encontrar el archivo
+            // ⬇️ DETECTAR si es URL de Drive o path local
+            if (filter_var($document->path, FILTER_VALIDATE_URL)) {
+                // Es una URL de Google Drive → Redirigir
+                Log::info('✅ Redirigiendo a Google Drive', [
+                    'document_id' => $id,
+                    'url' => $document->path
+                ]);
+
+                return redirect($document->path);
+            }
+
+            // Es un archivo local → Descarga tradicional
             $strategies = [
-                // Estrategia 1: Path directo desde el modelo
                 ['disk' => 'public', 'path' => $document->path],
-
-                // Estrategia 2: Sin el prefijo 'documents/' si ya está incluido
                 ['disk' => 'public', 'path' => str_replace('documents/', '', $document->path)],
-
-                // Estrategia 3: Con el prefijo 'documents/' si no está
                 ['disk' => 'public', 'path' => 'documents/' . $document->path],
             ];
 
@@ -301,24 +315,15 @@ class DocumentController extends Controller
                 $disk = $strategy['disk'];
                 $path = $strategy['path'];
 
-                Log::info("Estrategia {$index}: Buscando archivo", [
-                    'disk' => $disk,
-                    'path' => $path,
-                    'exists' => Storage::disk($disk)->exists($path)
-                ]);
-
                 if (Storage::disk($disk)->exists($path)) {
-                    // ¡Archivo encontrado!
-                    Log::info('✅ Archivo encontrado', [
+                    Log::info('✅ Archivo local encontrado', [
                         'strategy' => $index,
                         'path' => $path
                     ]);
 
-                    // Obtener extensión
                     $extension = pathinfo($path, PATHINFO_EXTENSION);
                     $filename = $document->name . '.' . $extension;
 
-                    // Headers personalizados para forzar descarga
                     return response()->download(
                         Storage::disk($disk)->path($path),
                         $filename,
@@ -330,19 +335,16 @@ class DocumentController extends Controller
                 }
             }
 
-            // Si llegamos aquí, ninguna estrategia funcionó
-            Log::error('❌ Archivo no encontrado en ninguna ubicación', [
+            // Si no se encontró en ningún lado
+            Log::error('❌ Archivo no encontrado', [
                 'document_id' => $id,
                 'path_in_db' => $document->path,
-                'storage_path' => storage_path('app/public'),
-                'files_in_documents' => Storage::disk('public')->files('documents'),
             ]);
 
             return response()->json([
                 'error' => 'Archivo no encontrado',
-                'message' => 'El archivo no existe en el servidor',
+                'message' => 'El archivo no existe en el servidor ni en Drive',
                 'path_stored' => $document->path,
-                'suggestion' => 'Verifica que el archivo fue subido correctamente y que el enlace simbólico está creado (php artisan storage:link)'
             ], 404);
 
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
@@ -355,8 +357,6 @@ class DocumentController extends Controller
             Log::error('Error inesperado al descargar', [
                 'document_id' => $id,
                 'error' => $e->getMessage(),
-                'line' => $e->getLine(),
-                'file' => $e->getFile()
             ]);
 
             return response()->json([
