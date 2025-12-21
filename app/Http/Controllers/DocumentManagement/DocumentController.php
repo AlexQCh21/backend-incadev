@@ -107,18 +107,39 @@ class DocumentController extends Controller
     /**
      * Store a newly created document
      */
+    /**
+ * Store a newly created document
+ */
     public function store(Request $request): JsonResponse
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255|unique:administrative_documents,name',
-            'type' => 'required|string|in:Académico,Administrativo,Legal',
-            'file' => 'required|file|mimes:pdf|max:10240', // Solo PDF, 10MB max
+        Log::info('📥 Iniciando subida de documento', [
+            'request_data' => $request->all(),
+            'has_file' => $request->hasFile('file'),
+            'file_info' => $request->file('file') ? [
+                'original_name' => $request->file('file')->getClientOriginalName(),
+                'size' => $request->file('file')->getSize(),
+                'mime' => $request->file('file')->getMimeType(),
+            ] : null
         ]);
 
         try {
+            $validated = $request->validate([
+                'name' => 'required|string|max:255|unique:administrative_documents,name',
+                'type' => 'required|string|in:Académico,Administrativo,Legal',
+                'file' => 'required|file|mimes:pdf|max:10240', // Solo PDF, 10MB max
+            ]);
+
+            Log::info('✅ Validación exitosa', ['validated' => $validated]);
+
             // Subir archivo
             $file = $request->file('file');
             $path = $file->store('documents', 'public');
+
+            Log::info('📁 Archivo guardado', [
+                'path' => $path,
+                'full_path' => Storage::disk('public')->path($path),
+                'exists' => Storage::disk('public')->exists($path),
+            ]);
 
             // Crear documento con versión inicial 1.0
             $document = AdministrativeDocument::create([
@@ -128,18 +149,42 @@ class DocumentController extends Controller
                 'version' => 1.0,
             ]);
 
-            Log::info('Documento creado', ['document_id' => $document->id, 'name' => $document->name]);
+            Log::info('✅ Documento creado en BD', [
+                'document_id' => $document->id,
+                'name' => $document->name,
+                'path' => $document->path
+            ]);
 
             return response()->json([
                 'message' => 'Documento subido exitosamente',
                 'data' => $document
             ], 201);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('❌ Error de validación', [
+                'errors' => $e->errors(),
+                'messages' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'error' => 'Error de validación',
+                'messages' => $e->errors()
+            ], 422);
+
         } catch (\Exception $e) {
-            Log::error('Error al subir documento', ['error' => $e->getMessage()]);
-            return response()->json(['error' => 'Error al subir el documento: ' . $e->getMessage()], 500);
+            Log::error('❌ Error al subir documento', [
+                'error' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'error' => 'Error al subir el documento',
+                'message' => config('app.debug') ? $e->getMessage() : 'Error del servidor'
+            ], 500);
         }
     }
-
     /**
      * Display the specified document
      */
@@ -229,15 +274,96 @@ class DocumentController extends Controller
     /**
      * Download document
      */
+    /**
+ * Download document - Versión mejorada con debugging
+ */
+    /**
+ * Download document - Versión ultra-robusta
+ */
     public function download(string $id)
     {
-        $document = AdministrativeDocument::findOrFail($id);
+        try {
+            $document = AdministrativeDocument::findOrFail($id);
 
-        if (!Storage::disk('public')->exists($document->path)) {
-            return response()->json(['error' => 'Archivo no encontrado'], 404);
+            // Intentar múltiples estrategias para encontrar el archivo
+            $strategies = [
+                // Estrategia 1: Path directo desde el modelo
+                ['disk' => 'public', 'path' => $document->path],
+
+                // Estrategia 2: Sin el prefijo 'documents/' si ya está incluido
+                ['disk' => 'public', 'path' => str_replace('documents/', '', $document->path)],
+
+                // Estrategia 3: Con el prefijo 'documents/' si no está
+                ['disk' => 'public', 'path' => 'documents/' . $document->path],
+            ];
+
+            foreach ($strategies as $index => $strategy) {
+                $disk = $strategy['disk'];
+                $path = $strategy['path'];
+
+                Log::info("Estrategia {$index}: Buscando archivo", [
+                    'disk' => $disk,
+                    'path' => $path,
+                    'exists' => Storage::disk($disk)->exists($path)
+                ]);
+
+                if (Storage::disk($disk)->exists($path)) {
+                    // ¡Archivo encontrado!
+                    Log::info('✅ Archivo encontrado', [
+                        'strategy' => $index,
+                        'path' => $path
+                    ]);
+
+                    // Obtener extensión
+                    $extension = pathinfo($path, PATHINFO_EXTENSION);
+                    $filename = $document->name . '.' . $extension;
+
+                    // Headers personalizados para forzar descarga
+                    return response()->download(
+                        Storage::disk($disk)->path($path),
+                        $filename,
+                        [
+                            'Content-Type' => Storage::disk($disk)->mimeType($path),
+                            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+                        ]
+                    );
+                }
+            }
+
+            // Si llegamos aquí, ninguna estrategia funcionó
+            Log::error('❌ Archivo no encontrado en ninguna ubicación', [
+                'document_id' => $id,
+                'path_in_db' => $document->path,
+                'storage_path' => storage_path('app/public'),
+                'files_in_documents' => Storage::disk('public')->files('documents'),
+            ]);
+
+            return response()->json([
+                'error' => 'Archivo no encontrado',
+                'message' => 'El archivo no existe en el servidor',
+                'path_stored' => $document->path,
+                'suggestion' => 'Verifica que el archivo fue subido correctamente y que el enlace simbólico está creado (php artisan storage:link)'
+            ], 404);
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'error' => 'Documento no encontrado',
+                'message' => 'No existe un documento con ese ID'
+            ], 404);
+
+        } catch (\Exception $e) {
+            Log::error('Error inesperado al descargar', [
+                'document_id' => $id,
+                'error' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile()
+            ]);
+
+            return response()->json([
+                'error' => 'Error del servidor',
+                'message' => config('app.debug') ? $e->getMessage() : 'Error al procesar la descarga'
+            ], 500);
         }
-
-        return Storage::disk('public')->download($document->path, $document->name . '.' . strtolower($document->type));
     }
 
     /**
